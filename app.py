@@ -2,11 +2,42 @@ import streamlit as st
 import google.generativeai as genai
 import numpy as np
 import matplotlib.pyplot as plt
+from gtts import gTTS
+import io
 
 # 1. 페이지 기본 설정
 st.set_page_config(page_title="문화고 2-5 AI 튜터", page_icon="🤖", layout="wide")
 st.title("🤖 [문화고 2학년 5반] 삼차함수 그래프의 비밀을 찾아라!")
 st.markdown("AI 튜터에게 수학적 용어로 질문을 던져 삼차함수에 숨겨진 **기하학적 비율 관계**를 찾아내세요.")
+st.markdown("---")
+
+# --- [음성 가이드 영역] ---
+st.markdown("### 🎧 AI 튜터 이용 가이드 (순서대로 재생 버튼을 눌러주세요)")
+
+# 음성 생성 및 자동 재생 함수
+def play_audio_guide(text):
+    tts = gTTS(text=text, lang='ko')
+    fp = io.BytesIO()
+    tts.write_to_fp(fp)
+    st.audio(fp, format='audio/mp3', autoplay=True)
+
+btn_col1, btn_col2, btn_col3 = st.columns(3)
+
+with btn_col1:
+    if st.button("▶ 1단계: 미션 브리핑 듣기"):
+        guide_text = "문화고 2학년 5반 여러분, 환영합니다. 오늘 여러분의 미션은 삼차함수 그래프 속에 숨겨진 놀라운 거리 비율을 스스로 찾아내는 것입니다. 먼저 화면 왼쪽을 보세요. 위쪽의 삼차함수와 아래쪽의 도함수 그래프를 위아래로 훑어보며, 세로 점선이 어떤 의미를 가지는지 관찰해 보세요."
+        play_audio_guide(guide_text)
+
+with btn_col2:
+    if st.button("▶ 2단계: AI와 스무고개 시작하기"):
+        guide_text = "관찰이 끝났다면, 이제 오른쪽 AI 튜터와 대결할 차례입니다! AI는 정답을 절대 알려주지 않습니다. 극댓값, 극솟값, 대칭축, 변곡점 같은 정확한 수학 용어를 써서 압박 질문을 던져야만 단서를 줍니다. 첫 질문이 막막하다면, '이 삼차함수의 극댓값과 극솟값의 x좌표는 뭐야?'라고 물어보며 대화를 시작해 보세요. 자, 지금 바로 채팅창에 여러분의 첫 번째 프롬프트를 입력하고 엔터를 쳐보세요!"
+        play_audio_guide(guide_text)
+
+with btn_col3:
+    if st.button("▶ 3단계: 수학적 증명 도전하기"):
+        guide_text = "결정적인 비율의 비밀을 알아냈나요? 정말 훌륭합니다! 하지만 눈으로 본 것을 진짜 수학이라고 할 순 없겠죠. 이제 책상 위의 활동지 3단계로 넘어가세요. 여러분이 발견한 그 규칙이 식에서도 항상 성립하는지, 도함수를 이용해 논리적으로 증명해 봅시다."
+        play_audio_guide(guide_text)
+
 st.markdown("---")
 
 # 2. Gemini API 설정 (보안을 위해 st.secrets 사용)
@@ -36,7 +67,7 @@ model = genai.GenerativeModel(
 if "chat_session" not in st.session_state:
     st.session_state.chat_session = model.start_chat(history=[])
 
-# 4. 화면 레이아웃 분할 (좌: 연동 그래프 2개, 우: AI 챗봇)
+# 4. 화면 레이아웃 분할
 col1, col2 = st.columns([1, 1])
 
 # 좌측: 수학 그래프 시각화 영역 (삼차함수 & 도함수)
@@ -44,48 +75,45 @@ with col1:
     st.subheader("📈 탐구용 그래프")
     st.markdown("위쪽은 함수 $f(x)$, 아래쪽은 도함수 $f'(x)$입니다. 세로 점선을 따라 두 그래프의 관계를 관찰해 보세요.")
     
-    # x 범위 설정
     x = np.linspace(-2.5, 2.5, 400)
-    y = x**3 - 3*x       # 삼차함수
-    dy = 3*x**2 - 3      # 이차함수(도함수)
+    y = x**3 - 3*x       
+    dy = 3*x**2 - 3      
     
-    # sharex=True를 제거하여 위아래 그래프 모두 x축 숫자가 나오도록 수정
     fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(6, 7))
-    plt.subplots_adjust(hspace=0.2) # 위아래 그래프 간격
+    plt.subplots_adjust(hspace=0.2) 
     
-    # --- [상단 그래프] 원래 함수 f(x) ---
+    # --- [상단 그래프] ---
     ax1.plot(x, y, label="$f(x) = x^3 - 3x$", color="#1f77b4", linewidth=2)
     ax1.spines['left'].set_position('zero')
     ax1.spines['bottom'].set_position('zero')
     ax1.spines['right'].set_color('none')
     ax1.spines['top'].set_color('none')
     
-    ax1.set_xticks(np.arange(-2, 3, 1)) # x축 눈금 -2, -1, 0, 1, 2 명시
+    ax1.set_xticks(np.arange(-2, 3, 1))
     ax1.set_yticks(np.arange(-4, 5, 1))
     ax1.set_xlim(-2.5, 2.5)
     ax1.set_ylim(-4.5, 4.5)
     
-    # f(x)의 극대, 극소 가로 보조선
     ax1.axhline(2, color='red', alpha=0.4, linestyle=':')
     ax1.axhline(-2, color='blue', alpha=0.4, linestyle=':')
     ax1.grid(True, alpha=0.3, linestyle='--')
     ax1.legend(loc='upper left')
     
-    # --- [하단 그래프] 도함수 f'(x) ---
+    # --- [하단 그래프] ---
     ax2.plot(x, dy, label="$f'(x) = 3x^2 - 3$", color="#ff7f0e", linewidth=2)
     ax2.spines['left'].set_position('zero')
     ax2.spines['bottom'].set_position('zero')
     ax2.spines['right'].set_color('none')
     ax2.spines['top'].set_color('none')
     
-    ax2.set_xticks(np.arange(-2, 3, 1)) # 하단 그래프도 동일하게 x축 눈금 명시
+    ax2.set_xticks(np.arange(-2, 3, 1))
     ax2.set_yticks(np.arange(-4, 10, 2))
-    ax2.set_xlim(-2.5, 2.5) # 위아래 그래프의 좌우 폭을 완벽히 일치시킴
+    ax2.set_xlim(-2.5, 2.5) 
     ax2.set_ylim(-4.5, 9.5)
     ax2.grid(True, alpha=0.3, linestyle='--')
     ax2.legend(loc='upper center')
     
-    # --- [핵심] 두 그래프를 관통하는 세로 보조선 (x=-1, 0, 1) ---
+    # --- [수직 보조선] ---
     for ax in [ax1, ax2]:
         ax.axvline(-1, color='gray', alpha=0.5, linestyle='--')
         ax.axvline(1, color='gray', alpha=0.5, linestyle='--')
@@ -98,7 +126,6 @@ with col1:
 with col2:
     st.subheader("💬 소크라테스 AI 튜터")
     
-    # 대화 기록 출력용 컨테이너
     chat_container = st.container(height=550)
     
     with chat_container:
@@ -107,8 +134,12 @@ with col2:
             with st.chat_message(role):
                 st.markdown(message.parts[0].text)
 
+    # 첫 질문 시각적 힌트 추가
+    st.caption("💡 **어떻게 질문할지 막막하다면? 이렇게 시작해 보세요!**")
+    st.info("👉 '이 삼차함수의 극댓값과 극솟값의 x좌표는 각각 뭐야?'")
+
     # 채팅 입력창
-    user_input = st.chat_input("AI에게 질문을 입력하세요 (예: 이차함수 대칭축이랑 삼차함수랑 무슨 상관이야?)")
+    user_input = st.chat_input("AI에게 질문을 입력하세요")
     
     if user_input:
         with chat_container:
