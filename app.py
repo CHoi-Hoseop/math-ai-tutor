@@ -44,21 +44,33 @@ with col1:
     st.subheader("📈 탐구용 그래프: $f(x) = x^3 - 3x$")
     st.markdown("그래프의 극댓값, 극솟값, 그리고 $x$축과의 교점을 관찰해 보세요.")
     
-    # Matplotlib을 이용한 간단한 삼차함수 그래프
-    x = np.linspace(-3, 3, 400)
+    # 그래프를 그릴 x의 범위를 좁혀서 극값과 교점 주변을 확대
+    x = np.linspace(-2.5, 2.5, 400)
     y = x**3 - 3*x
     
-    fig, ax = plt.subplots(figsize=(6, 4))
-    ax.plot(x, y, label="$f(x) = x^3 - 3x$", color="#1f77b4")
-    ax.axhline(0, color='black', linewidth=0.8, linestyle='--')
-    ax.axvline(0, color='black', linewidth=0.8, linestyle='--')
+    fig, ax = plt.subplots(figsize=(6, 5))
+    ax.plot(x, y, label="$f(x) = x^3 - 3x$", color="#1f77b4", linewidth=2)
     
-    # 극대, 극소 보조선 (학생 탐구용 힌트)
-    ax.axhline(2, color='red', alpha=0.3, linestyle=':')
-    ax.axhline(-2, color='blue', alpha=0.3, linestyle=':')
+    # 1. 교과서 스타일 좌표평면 설정 (테두리 없애고 축을 원점으로 이동)
+    ax.spines['left'].set_position('zero')
+    ax.spines['bottom'].set_position('zero')
+    ax.spines['right'].set_color('none')
+    ax.spines['top'].set_color('none')
     
-    ax.grid(True, alpha=0.3)
-    ax.legend()
+    # 2. x축과 y축 눈금을 모두 1단위로 고정
+    ax.set_xticks(np.arange(-3, 4, 1))
+    ax.set_yticks(np.arange(-5, 6, 1))
+    
+    # 3. 그래프 상하좌우 여백(범위) 제한
+    ax.set_xlim(-2.5, 2.5)
+    ax.set_ylim(-4.5, 4.5)
+    
+    # 극대, 극소 보조선
+    ax.axhline(2, color='red', alpha=0.5, linestyle=':')
+    ax.axhline(-2, color='blue', alpha=0.5, linestyle=':')
+    
+    ax.grid(True, alpha=0.3, linestyle='--')
+    ax.legend(loc='upper left')
     st.pyplot(fig)
     
     st.info("💡 **Tip:** 위 그래프에서 극댓값을 갖는 점표에서 접선을 그었을 때, 그래프와 다시 만나는 교점의 $x$좌표는 무엇일까요? AI에게 물어보세요!")
