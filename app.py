@@ -49,8 +49,8 @@ with col1:
     y = x**3 - 3*x       # 삼차함수
     dy = 3*x**2 - 3      # 이차함수(도함수)
     
-    # 2개의 그래프를 위아래로 배치하고 x축을 완벽히 연동(sharex=True)
-    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(6, 7), sharex=True)
+    # sharex=True를 제거하여 위아래 그래프 모두 x축 숫자가 나오도록 수정
+    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(6, 7))
     plt.subplots_adjust(hspace=0.2) # 위아래 그래프 간격
     
     # --- [상단 그래프] 원래 함수 f(x) ---
@@ -60,6 +60,7 @@ with col1:
     ax1.spines['right'].set_color('none')
     ax1.spines['top'].set_color('none')
     
+    ax1.set_xticks(np.arange(-2, 3, 1)) # x축 눈금 -2, -1, 0, 1, 2 명시
     ax1.set_yticks(np.arange(-4, 5, 1))
     ax1.set_xlim(-2.5, 2.5)
     ax1.set_ylim(-4.5, 4.5)
@@ -77,13 +78,14 @@ with col1:
     ax2.spines['right'].set_color('none')
     ax2.spines['top'].set_color('none')
     
+    ax2.set_xticks(np.arange(-2, 3, 1)) # 하단 그래프도 동일하게 x축 눈금 명시
     ax2.set_yticks(np.arange(-4, 10, 2))
+    ax2.set_xlim(-2.5, 2.5) # 위아래 그래프의 좌우 폭을 완벽히 일치시킴
     ax2.set_ylim(-4.5, 9.5)
     ax2.grid(True, alpha=0.3, linestyle='--')
     ax2.legend(loc='upper center')
     
     # --- [핵심] 두 그래프를 관통하는 세로 보조선 (x=-1, 0, 1) ---
-    # x=-1 (극대 및 도함수 근), x=1 (극소 및 도함수 근), x=0 (변곡점 및 도함수 대칭축)
     for ax in [ax1, ax2]:
         ax.axvline(-1, color='gray', alpha=0.5, linestyle='--')
         ax.axvline(1, color='gray', alpha=0.5, linestyle='--')
