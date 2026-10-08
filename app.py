@@ -2,7 +2,8 @@ import streamlit as st
 import google.generativeai as genai
 import numpy as np
 import matplotlib.pyplot as plt
-from gtts import gTTS
+import edge_tts
+import asyncio
 import io
 
 # 1. 페이지 기본 설정
@@ -11,15 +12,27 @@ st.title("🤖 [문화고 2학년 5반] 삼차함수 그래프의 비밀을 찾�
 st.markdown("AI 튜터에게 수학적 용어로 질문을 던져 삼차함수에 숨겨진 **기하학적 비율 관계**를 찾아내세요.")
 st.markdown("---")
 
-# --- [음성 가이드 영역] ---
+# --- [음성 가이드 영역 (자연스러운 여성 목소리 '선희' 적용)] ---
 st.markdown("### 🎧 AI 튜터 이용 가이드 (순서대로 재생 버튼을 눌러주세요)")
 
-# 음성 생성 및 자동 재생 함수
+# 비동기 Edge TTS 음성 생성 및 재생 함수
 def play_audio_guide(text):
-    tts = gTTS(text=text, lang='ko')
-    fp = io.BytesIO()
-    tts.write_to_fp(fp)
-    st.audio(fp, format='audio/mp3', autoplay=True)
+    async def _generate_audio():
+        # ko-KR-SunHiNeural: 마이크로소프트의 자연스러운 한국어 여성 목소리
+        communicate = edge_tts.Communicate(text, "ko-KR-SunHiNeural")
+        audio_bytes = b""
+        async for chunk in communicate.stream():
+            if chunk["type"] == "audio":
+                audio_bytes += chunk["data"]
+        return audio_bytes
+    
+    # Streamlit에서 안전하게 실행하기 위한 처리
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    audio_data = loop.run_until_complete(_generate_audio())
+    loop.close()
+    
+    st.audio(audio_data, format='audio/mp3', autoplay=True)
 
 btn_col1, btn_col2, btn_col3 = st.columns(3)
 
@@ -40,9 +53,10 @@ with btn_col3:
 
 st.markdown("---")
 
-# 2. Gemini API 설정 (보안을 위해 st.secrets 사용)
+# 2. Gemini API 설정 (이하 기존 코드 그대로 유지)
 API_KEY = st.secrets["GEMINI_API_KEY"]
 genai.configure(api_key=API_KEY)
+# ... (아래로 쭈욱 기존 코드 유지)
 
 # 3. AI 튜터 페르소나 (시스템 프롬프트) 설정
 system_instruction = """
@@ -89,10 +103,21 @@ with col1:
     ax1.spines['right'].set_color('none')
     ax1.spines['top'].set_color('none')
     
-    ax1.set_xticks(np.arange(-2, 3, 1))
-    ax1.set_yticks(np.arange(-4, 5, 1))
+    # x축 눈금 (0은 글씨 숨김)
+    xticks = np.arange(-2, 3, 1)
+    ax1.set_xticks(xticks)
+    ax1.set_xticklabels([str(i) if i != 0 else '' for i in xticks])
+    
+    # y축 눈금 (0은 글씨 숨김)
+    yticks1 = np.arange(-4, 5, 1)
+    ax1.set_yticks(yticks1)
+    ax1.set_yticklabels([str(i) if i != 0 else '' for i in yticks1])
+    
     ax1.set_xlim(-2.5, 2.5)
     ax1.set_ylim(-4.5, 4.5)
+    
+    # 교과서 스타일 원점(O) 추가
+    ax1.text(-0.2, -0.4, 'O', fontsize=12, fontstyle='italic')
     
     ax1.axhline(2, color='red', alpha=0.4, linestyle=':')
     ax1.axhline(-2, color='blue', alpha=0.4, linestyle=':')
@@ -106,10 +131,21 @@ with col1:
     ax2.spines['right'].set_color('none')
     ax2.spines['top'].set_color('none')
     
-    ax2.set_xticks(np.arange(-2, 3, 1))
-    ax2.set_yticks(np.arange(-4, 10, 2))
+    # x축 눈금 (0은 글씨 숨김)
+    ax2.set_xticks(xticks)
+    ax2.set_xticklabels([str(i) if i != 0 else '' for i in xticks])
+    
+    # y축 눈금 (0은 글씨 숨김)
+    yticks2 = np.arange(-4, 10, 2)
+    ax2.set_yticks(yticks2)
+    ax2.set_yticklabels([str(i) if i != 0 else '' for i in yticks2])
+    
     ax2.set_xlim(-2.5, 2.5) 
     ax2.set_ylim(-4.5, 9.5)
+    
+    # 교과서 스타일 원점(O) 추가
+    ax2.text(-0.2, -0.8, 'O', fontsize=12, fontstyle='italic')
+    
     ax2.grid(True, alpha=0.3, linestyle='--')
     ax2.legend(loc='upper center')
     
