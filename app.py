@@ -73,7 +73,7 @@ system_instruction = """
 
 # 모델 초기화
 model = genai.GenerativeModel(
-    model_name="gemini-1.5-flash",
+    model_name="gemini-3.8-flash",
     system_instruction=system_instruction
 )
 
