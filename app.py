@@ -187,7 +187,11 @@ with col2:
                 message_placeholder = st.empty()
                 full_response = ""
                 
-                response = st.session_state.chat_session.send_message(user_input, stream=True)
+                # --- [추가된 부분: 로딩 애니메이션] ---
+                with st.spinner("🤔 AI 튜터가 2학년 5반 학생의 질문을 분석하고 있습니다..."):
+                    response = st.session_state.chat_session.send_message(user_input, stream=True)
+                # ------------------------------------
+                
                 for chunk in response:
                     full_response += chunk.text
                     message_placeholder.markdown(full_response + "▌")
