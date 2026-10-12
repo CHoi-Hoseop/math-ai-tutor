@@ -6,55 +6,97 @@ import edge_tts
 import asyncio
 import datetime
 import time
-import os
 import sqlite3
 import pandas as pd
 
 # ==========================================
-# 1. 페이지 설정 및 모둠/대시보드 CSS 스타일
+# 1. 페이지 설정 및 UI 스타일링
 # ==========================================
 st.set_page_config(page_title="문화고 2학년 미적분Ⅰ AI 튜터 & 관제", page_icon="📐", layout="wide")
 
 st.markdown("""
 <style>
-    h1 { font-size: 2.0rem !important; }
-    h2, h3 { font-size: 1.4rem !important; }
+    /* 기본 폰트 및 공통 여백 */
+    h1 { font-size: 2.1rem !important; font-weight: 800 !important; }
+    h2, h3 { font-weight: 700 !important; }
     
-    /* 태블릿 채팅 폰트 시인성 확보 */
+    /* 태블릿 채팅 가독성 */
     .stChatMessage p, .stChatMessage li, .stChatMessage div {
         font-size: 1.15rem !important;
         line-height: 1.65 !important;
     }
     
-    /* 대시보드 조별 카드 */
+    /* 대시보드 6분할 조별 카드 */
     .dash-card {
         background: #ffffff;
         border-radius: 12px;
-        border: 2px solid #e2e8f0;
-        padding: 14px;
-        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.08);
+        border: 1.8px solid #cbd5e1;
+        padding: 16px;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
         margin-bottom: 14px;
-        min-height: 250px;
+        min-height: 260px;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
     }
-    .dash-card.warn-stuck { border: 2.5px solid #f59e0b; background: #fffbeb; }
-    .dash-card.warn-troll { border: 2.5px solid #ef4444; background: #fef2f2; }
+    .dash-card.warn-stuck { border: 2.2px solid #f59e0b; background: #fffbeb; }
+    .dash-card.warn-troll { border: 2.2px solid #ef4444; background: #fef2f2; }
     
     .dash-header {
         display: flex; justify-content: space-between; align-items: center;
-        border-bottom: 1.5px solid #e2e8f0; padding-bottom: 6px; margin-bottom: 8px;
+        border-bottom: 1.5px solid #e2e8f0; padding-bottom: 8px; margin-bottom: 10px;
     }
-    .dash-title { font-size: 1.25rem; font-weight: 800; color: #0f172a; }
-    .badge-ok { background: #dcfce7; color: #15803d; padding: 2px 7px; border-radius: 6px; font-size: 0.75rem; font-weight: 700; }
-    .badge-stuck { background: #fef3c7; color: #b45309; padding: 2px 7px; border-radius: 6px; font-size: 0.75rem; font-weight: 800; }
-    .badge-troll { background: #fee2e2; color: #b91c1c; padding: 2px 7px; border-radius: 6px; font-size: 0.75rem; font-weight: 800; }
+    .dash-title { font-size: 1.3rem; font-weight: 800; color: #0f172a; }
     
-    .q-preview { font-size: 0.95rem; font-weight: 700; color: #1e40af; margin-bottom: 4px; line-height: 1.35; }
-    .a-preview { font-size: 0.88rem; color: #334155; line-height: 1.45; background: #f8fafc; padding: 7px; border-radius: 6px; }
+    .badge-ok { background: #dcfce7; color: #15803d; padding: 3px 8px; border-radius: 6px; font-size: 0.78rem; font-weight: 700; }
+    .badge-stuck { background: #fef3c7; color: #b45309; padding: 3px 8px; border-radius: 6px; font-size: 0.78rem; font-weight: 800; }
+    .badge-troll { background: #fee2e2; color: #b91c1c; padding: 3px 8px; border-radius: 6px; font-size: 0.78rem; font-weight: 800; }
+    .badge-time { background: #f1f5f9; color: #475569; padding: 2px 7px; border-radius: 4px; font-size: 0.75rem; font-weight: 600; margin-left: 6px; }
+
+    /* 교사용 질문 말풍선 버튼 스타일 (클릭 가능 피드) */
+    div[data-testid="stButton"] > button.q-bubble-btn {
+        background: #eff6ff !important;
+        border: 1.5px solid #bfdbfe !important;
+        border-left: 5px solid #2563eb !important;
+        color: #1e3a8a !important;
+        text-align: left !important;
+        border-radius: 8px !important;
+        padding: 10px 12px !important;
+        font-weight: 700 !important;
+        font-size: 0.95rem !important;
+        line-height: 1.4 !important;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.05) !important;
+        transition: all 0.15s ease-in-out !important;
+    }
+    div[data-testid="stButton"] > button.q-bubble-btn:hover {
+        background: #dbeafe !important;
+        border-color: #3b82f6 !important;
+        transform: translateY(-1px);
+    }
+    
+    .a-preview-box {
+        font-size: 0.88rem; color: #334155; line-height: 1.45;
+        background: #f8fafc; padding: 8px 10px; border-radius: 6px;
+        border: 1px solid #e2e8f0; margin-top: 6px;
+    }
+
+    /* 참관교사용 4단계 타임라인 게이지 */
+    .timeline-wrap { display: flex; gap: 8px; margin: 12px 0 18px 0; }
+    .tl-step {
+        flex: 1; padding: 10px 12px; border-radius: 8px;
+        background: #f8fafc; border: 1.5px solid #e2e8f0;
+        text-align: center; font-size: 0.85rem; color: #64748b; font-weight: 700;
+    }
+    .tl-step.active {
+        background: #eff6ff; border-color: #2563eb; color: #1e40af;
+        box-shadow: 0 0 0 2px rgba(37,99,235,0.2);
+    }
+    .tl-step-time { font-size: 0.75rem; font-weight: 500; display: block; margin-top: 3px; }
 </style>
 """, unsafe_allow_html=True)
 
 # ==========================================
-# 2. 로컬 SQLite 경량 공유 DB (태블릿 간 데이터 집계)
+# 2. 로컬 SQLite 경량 공유 DB 모듈
 # ==========================================
 DB_FILE = "class_monitor.db"
 
@@ -97,7 +139,7 @@ def get_logs():
 init_db()
 
 # ==========================================
-# 3. 문화고등학교 교시별 시간 모듈 (한국 표준시 KST 고정)
+# 3. 문화고등학교 교시별 시간 모듈 (KST 고정)
 # ==========================================
 SCHEDULE = [
     (1, datetime.time(8, 40), datetime.time(9, 30)),
@@ -110,7 +152,6 @@ SCHEDULE = [
 ]
 
 def get_current_period_and_elapsed():
-    # UTC 기준 서버 시각에 9시간을 더해 한국 시각(KST)으로 변환
     utc_now = datetime.datetime.now(datetime.timezone.utc)
     kst_now = utc_now + datetime.timedelta(hours=9)
     cur_time = kst_now.time()
@@ -126,7 +167,7 @@ def get_current_period_and_elapsed():
 cur_period, elapsed_min = get_current_period_and_elapsed()
 
 # ==========================================
-# 4. 사이드바 및 모드 선택 (반드시 조건문보다 위에 위치!)
+# 4. 사이드바 및 권한 인증 (선언 우선 배치)
 # ==========================================
 TEACHER_PIN = "1234"
 
@@ -140,7 +181,7 @@ with st.sidebar:
             "👨‍🏫 교사용 실시간 관제"
         ]
     )
-
+    
     is_teacher_authorized = False
     if user_mode == "👨‍🏫 교사용 실시간 관제":
         pin_input = st.text_input("교사용 PIN 번호 (4자리)", type="password")
@@ -151,66 +192,66 @@ with st.sidebar:
             st.error("PIN 번호가 일치하지 않습니다.")
     else:
         st.info(f"현재 **{user_mode}** 모드로 학습 중입니다.")
-
+        
     st.markdown("---")
     if cur_period != "테스트":
-        st.metric(label=f"{cur_period}교시 진행 시간", value=f"{elapsed_min}분 경과", delta=f"{max(0, 47 - elapsed_min)}분 남음")
+        st.metric(label=f"{cur_period}교시 진행 현황", value=f"{elapsed_min}분 경과", delta=f"{max(0, 47 - elapsed_min)}분 남음")
     else:
         st.caption("수업 외 시간 (테스트 모드)")
+
 # =========================================================================
-# MODE C: 👀 참관교사용 실시간 수업 브리핑 & 관전 가이드 (무암호 오픈)
+# MODE A: 👀 참관교사용 실시간 수업 브리핑 (무암호 오픈 + 4단계 타임라인 게이지)
 # =========================================================================
 if user_mode == "👀 참관교사용 실시간 브리핑":
-    st.title("📋 2026 문화고 연구수업 참관 가이드 & 실시간 관제")
-    st.caption("2학년 미적분Ⅰ: 소크라테스 AI 튜터 기반 삼차함수 그래프의 비율 관계 탐구")
+    st.title("📋 문화고 미적분Ⅰ 연구수업 참관 가이드")
+    st.caption("소크라테스 AI 튜터 기반 삼차함수 그래프의 비율 관계 탐구 (수업자: 최호섭 선생님)")
     
-    # 1. 수업 개요 및 타임라인 배너
-    t_col1, t_col2, t_col3 = st.columns([1.2, 1.8, 1])
-    with t_col1:
-        st.markdown("""
-        **[수업 정보]**
-        - **일시/장소:** 2학년 수학교실
-        - **수업자:** 최호섭 선생님
-        - **환경:** 모둠별 태블릿 + A4 양면 활동지
-        """)
-    with t_col2:
-        st.markdown(f"""
-        **[수업 진행 단계 (47분 가용)]**
-        - 현재: **{cur_period}교시 ({elapsed_min}분 경과)**
-        - 0~10분: 문제 제기 및 AI 프롬프트 첫 발문
-        - 10~25분: 핵심 4개 x좌표 탐색 및 1:1:1 기하학적 발견
-        - 25~40분: 조립제법 기반 2:1 대수적 정당화(증명)
-        - 40~47분: 1:√3 확장 안내 및 모둠 자기평가
-        """)
-    with t_col3:
-        if st.button("🔄 실시간 갱신", use_container_width=True):
-            st.rerun()
-            
-    st.markdown("---")
+    # 4단계 타임라인 프로그레스 게이지 계산
+    s1_cls = "active" if elapsed_min <= 10 else ""
+    s2_cls = "active" if 10 < elapsed_min <= 25 else ""
+    s3_cls = "active" if 25 < elapsed_min <= 40 else ""
+    s4_cls = "active" if elapsed_min > 40 else ""
     
-    # 2. 참관 관전 포인트 3선
-    st.subheader("💡 오늘의 참관 관전 포인트 (Focus Points)")
+    st.markdown(f"""
+    <div class="timeline-wrap">
+        <div class="tl-step {s1_cls}">
+            <b>1단계. 문제 제기</b>
+            <span class="tl-step-time">0~10분 (첫 발문 형성)</span>
+        </div>
+        <div class="tl-step {s2_cls}">
+            <b>2단계. AI 기하 탐구</b>
+            <span class="tl-step-time">10~25분 (1:1:1 발견)</span>
+        </div>
+        <div class="tl-step {s3_cls}">
+            <b>3단계. 대수적 정당화</b>
+            <span class="tl-step-time">25~40분 (2:1 증명)</span>
+        </div>
+        <div class="tl-step {s4_cls}">
+            <b>4단계. 정리 및 심화</b>
+            <span class="tl-step-time">40~47분 (1:√3 확장)</span>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+    
     p1, p2, p3 = st.columns(3)
     with p1:
         st.info("""
         **1. 수학적 발문의 정교화**  
-        학생들이 단순히 "답 알려줘"가 아니라, *극댓값, 극솟값, 도함수의 대칭축(변곡점)* 등 정확한 교과 어휘로 AI에게 단서를 캐내는지 관찰해 주세요.
+        단순 정답 요구가 아닌 *극댓값, 극솟값, 도함수의 대칭축(변곡점)* 등 수학적 용어로 질문을 좁혀가는지 관찰해 주세요.
         """)
     with p2:
         st.success("""
         **2. 활동지 하이브리드 연계**  
-        AI 답변을 보고 끝내는 것이 아니라, 모둠원과 토의하여 **종이 활동지 2단계 그래프에 직접 자를 대고 보조선과 1:1:1 간격을 채우는지** 확인해 주세요.
+        AI 답변을 확인한 후 모둠원과 토의하여 **종이 활동지 2단계 그래프에 자를 대고 거리 간격을 기록하는지** 확인해 주세요.
         """)
     with p3:
         st.warning("""
-        **3. 기하학에서 대수로의 증명**  
-        눈으로 본 2:1 비율을 $x^3 - 3x - 2 = 0$ 인수분해를 통해 **손으로 직접 증명해내는 정당화 과정**에 도달하는지 지켜봐 주세요.
+        **3. 기하에서 대수로의 정당화**  
+        발견한 2:1 비율을 $x^3 - 3x - 2 = 0$ 인수분해를 통해 **손으로 직접 증명해내는 정당화 과정**을 지켜봐 주세요.
         """)
         
     st.markdown("---")
-    
-    # 3. 실시간 모둠별 탐구 피드 (실시간 로그 열람)
-    st.subheader("📡 모둠별 실시간 AI 대화 피드")
+    st.subheader("📡 모둠별 실시간 대화 피드")
     df_obs = get_logs()
     
     if not df_obs.empty:
@@ -235,16 +276,14 @@ if user_mode == "👀 참관교사용 실시간 브리핑":
         
     st.stop()
 
-
-
 # =========================================================================
-# MODE A: 👨‍🏫 교사용 6분할 실시간 관제 센터 (질문창 클릭 시 팝업 확대)
+# MODE B: 👨‍🏫 교사용 6분할 실시간 관제 전광판 (말풍선 터치 팝업 + 상대시간 배지)
 # =========================================================================
 if user_mode == "👨‍🏫 교사용 실시간 관제" and is_teacher_authorized:
     h_col1, h_col2 = st.columns([3, 1])
     with h_col1:
         st.title("🖥️ [교단 관제 전광판] 6개 조 실시간 탐구 현황")
-        st.caption("각 조의 **질문 말풍선 박스**를 터치/클릭하면 해당 조의 전체 대화록이 대형 화면으로 확대됩니다.")
+        st.caption("질문 말풍선을 터치하면 해당 조의 전체 대화록이 화면 중앙에 고해상도로 확대됩니다.")
     with h_col2:
         st.write("")
         auto_refresh = st.checkbox("🔄 8초 자동 갱신", value=True)
@@ -252,10 +291,8 @@ if user_mode == "👨‍🏫 교사용 실시간 관제" and is_teacher_authoriz
             st.rerun()
             
     st.markdown("---")
-    
     df_all = get_logs()
     
-    # 🔍 대형 모달 팝업 함수
     @st.dialog("📋 모둠 탐구 상세 내역", width="large")
     def show_team_detail_modal(team_name, team_data):
         st.markdown(f"### 🏷️ **{team_name} 실시간 전체 대화록** (총 {len(team_data)}회 문답)")
@@ -283,7 +320,6 @@ if user_mode == "👨‍🏫 교사용 실시간 관제" and is_teacher_authoriz
         if st.button("닫기", use_container_width=True):
             st.rerun()
 
-    # 6개 조 그리드 렌더링
     row1 = st.columns(3)
     row2 = st.columns(3)
     grid_cols = row1 + row2
@@ -298,11 +334,24 @@ if user_mode == "👨‍🏫 교사용 실시간 관제" and is_teacher_authoriz
             has_troll = False
             last_q = "-"
             last_a = "-"
+            time_badge = ""
+            
             if t_cnt > 0:
                 last_row = t_logs.iloc[-1]
                 last_q = str(last_row.get("question", "-"))
                 last_a = str(last_row.get("answer", "-"))
                 has_troll = (last_row.get("is_troll", 0) == 1)
+                
+                # 상대 경과 시간 계산
+                try:
+                    t_str = str(last_row.get("timestamp", ""))
+                    if t_str:
+                        t_dt = pd.to_datetime(t_str)
+                        diff_sec = (datetime.datetime.utcnow() - t_dt).total_seconds()
+                        diff_min = max(0, int(diff_sec // 60))
+                        time_badge = f'<span class="badge-time">{diff_min}분 전</span>'
+                except Exception:
+                    time_badge = ""
             
             if has_troll:
                 card_style = "dash-card warn-troll"
@@ -314,31 +363,30 @@ if user_mode == "👨‍🏫 교사용 실시간 관제" and is_teacher_authoriz
                 card_style = "dash-card"
                 status_badge = '<span class="badge-ok">🟢 순항 중</span>'
                 
-            # 조 헤더 카드 렌더링
             st.markdown(f"""
             <div class="{card_style}">
                 <div class="dash-header">
                     <span class="dash-title">{t_name}</span>
                     <div>
                         {status_badge}
-                        <span style="font-size:0.8rem; font-weight:700; margin-left:4px; color:#475569;">({t_cnt}회 질문)</span>
+                        <span style="font-size:0.8rem; font-weight:700; margin-left:4px; color:#475569;">({t_cnt}회)</span>
+                        {time_badge}
                     </div>
                 </div>
             """, unsafe_allow_html=True)
             
             if t_cnt > 0:
-                # 👈 별도 버튼 대신 질문 텍스트 자체를 클릭 가능한 버튼으로 매핑
-                btn_label = f"💬 Q. {last_q[:28]}..." if len(last_q) > 28 else f"💬 Q. {last_q}"
-                if st.button(btn_label, key=f"q_click_{t_name}", use_container_width=True, help="클릭 시 전체 대화 내역이 확대됩니다."):
+                btn_txt = f"💬 Q. {last_q[:30]}..." if len(last_q) > 30 else f"💬 Q. {last_q}"
+                if st.button(btn_txt, key=f"q_click_{t_name}", use_container_width=True, help="클릭 시 전체 대화 내역이 확대됩니다."):
                     show_team_detail_modal(t_name, t_logs)
                 
                 st.markdown(f"""
-                    <div class="a-preview" style="margin-top:6px;"><b>AI:</b> {last_a[:85]}...</div>
+                    <div class="a-preview-box"><b>AI 요약:</b> {last_a[:85]}...</div>
                 </div>
                 """, unsafe_allow_html=True)
             else:
                 st.markdown("""
-                    <div style="color:#94a3b8; text-align:center; padding:35px 0; font-size:0.9rem;">
+                    <div style="color:#94a3b8; text-align:center; padding:45px 0; font-size:0.9rem;">
                         아직 전송된 질문이 없습니다.<br>1단계 작성을 독려해 주세요.
                     </div>
                 </div>
@@ -351,10 +399,8 @@ if user_mode == "👨‍🏫 교사용 실시간 관제" and is_teacher_authoriz
     st.stop()
 
 # =========================================================================
-# MODE B: 🤖 학생 모둠용 AI 튜터 화면 (1조 ~ 6조)
+# MODE C: 🤖 학생 모둠용 AI 튜터 화면 (1조 ~ 6조, 1.15 : 0.85 비율 최적화)
 # =========================================================================
-
-# 장난 방어 감지 키워드 리스트
 TROLL_WORDS = ["바보", "멍청", "롤", "티어", "롤체", "피파", "축구", "메이플", "사랑해", "개새", "존나", "시발", "섹스", "ㅋㅋㅋㅋ", "ㅎㅎㅎㅎ", "죽어"]
 
 def check_is_troll(text):
@@ -363,7 +409,6 @@ def check_is_troll(text):
             return True
     return False
 
-# 음성 가이드
 st.title(f"🤖 [{user_mode}] 삼차함수 그래프의 비율 탐구")
 st.markdown("모둠원과 상의한 질문을 AI에게 전송하고, 단서를 **책상 위 활동지**에 기록하세요.")
 
@@ -394,7 +439,6 @@ with b3:
 
 st.markdown("---")
 
-# Gemini 모델 설정 및 강력한 가드레일 프롬프트
 API_KEY = st.secrets["GEMINI_API_KEY"]
 genai.configure(api_key=API_KEY)
 
@@ -420,7 +464,7 @@ if session_key not in st.session_state:
 if "chat" not in st.session_state:
     st.session_state.chat = model.start_chat(history=[])
 
-col_graph, col_chat = st.columns([1, 1], gap="medium")
+col_graph, col_chat = st.columns([1.15, 0.85], gap="medium")
 
 # 좌측 그래프
 with col_graph:
@@ -429,7 +473,7 @@ with col_graph:
     y = x**3 - 3*x
     dy = 3*x**2 - 3
     
-    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(6, 7.5))
+    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(6.2, 7.5))
     plt.subplots_adjust(hspace=0.28)
     xticks = np.arange(-2, 3, 1)
     
@@ -509,7 +553,5 @@ with col_chat:
                         
                     st.markdown(bot_reply)
                     st.session_state[session_key].append({"role": "assistant", "content": bot_reply})
-                    
-                    # 로컬 관제 DB에 즉시 저장
                     save_log(user_mode, final_q, bot_reply, is_troll)
         st.rerun()
