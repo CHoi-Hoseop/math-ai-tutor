@@ -179,7 +179,7 @@ def get_current_period_and_elapsed():
     else:
         # 버튼을 아직 안 눌렀을 때는 1단계(0분)부터 대기
         return "수업 대기", 0
-
+cur_period, elapsed_min = get_current_period_and_elapsed()
 # ==========================================
 # 4. 사이드바 및 권한 인증 (선언 우선 배치)
 # ==========================================
@@ -208,10 +208,10 @@ with st.sidebar:
         st.info(f"현재 **{user_mode}** 모드로 학습 중입니다.")
         
     st.markdown("---")
-    if cur_period != "테스트":
-        st.metric(label=f"{cur_period}교시 진행 현황", value=f"{elapsed_min}분 경과", delta=f"{max(0, 47 - elapsed_min)}분 남음")
+    if cur_period not in ["테스트", "수업 대기"]:
+        st.metric(label=f"{cur_period} 진행 현황", value=f"{elapsed_min}분 경과", delta=f"{max(0, 47 - elapsed_min)}분 남음")
     else:
-        st.caption("수업 외 시간 (테스트 모드)")
+        st.caption("수업 외 시간 (수업 시작 대기)")
 
 # =========================================================================
 # MODE A: 👀 참관교사용 실시간 수업 브리핑 (무암호 오픈 + 4단계 타임라인 게이지)
