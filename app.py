@@ -238,13 +238,13 @@ if user_mode == "👀 참관교사용 실시간 브리핑":
 
 
 # =========================================================================
-# MODE A: 👨‍🏫 교사용 6분할 실시간 관제 센터 (PIN 인증 시 활성화)
-# =========================================================================
+# MODE A: 👨‍🏫 교사용 6분할 실시간 관제 센터 (상세 팝업 확대 기능 탑재)
+# ==========================================
 if user_mode == "👨‍🏫 교사용 실시간 관제" and is_teacher_authorized:
     h_col1, h_col2 = st.columns([3, 1])
     with h_col1:
         st.title("🖥️ [교단 관제 전광판] 6개 조 실시간 탐구 현황")
-        st.caption("실시간으로 학생들의 질문을 분석하여 정체된 모둠이나 비수학적 장난 입력을 감지합니다.")
+        st.caption("카드의 '🔍 확대 보기'를 누르면 해당 조의 전체 탐구 대화록이 대형 화면으로 팝업됩니다.")
     with h_col2:
         st.write("")
         auto_refresh = st.checkbox("🔄 8초 자동 갱신", value=True)
@@ -255,6 +255,35 @@ if user_mode == "👨‍🏫 교사용 실시간 관제" and is_teacher_authoriz
     
     df_all = get_logs()
     
+    # 🔍 모달 팝업 함수 정의 (전자칠판 전용 대형 뷰어)
+    @st.dialog("📋 모둠 탐구 상세 내역", width="large")
+    def show_team_detail_modal(team_name, team_data):
+        st.markdown(f"### 🏷️ **{team_name} 실시간 전체 대화록** (총 {len(team_data)}회 문답)")
+        st.markdown("---")
+        
+        if team_data.empty:
+            st.info("아직 전송된 질문이 없습니다.")
+        else:
+            for idx, row in team_data.iterrows():
+                is_troll_log = row.get("is_troll", 0) == 1
+                q_border = "#ef4444" if is_troll_log else "#2563eb"
+                q_bg = "#fef2f2" if is_troll_log else "#eff6ff"
+                
+                st.markdown(f"""
+                <div style="background:{q_bg}; border-left:5px solid {q_border}; padding:10px 14px; border-radius:6px; margin-bottom:8px;">
+                    <div style="font-size:0.85rem; color:#64748b; font-weight:700;">#{row.get('id', idx+1)} 질문 [{row.get('timestamp', '')}]</div>
+                    <div style="font-size:1.15rem; font-weight:800; color:#0f172a; margin-top:3px;">Q. {row.get('question', '-')}</div>
+                </div>
+                <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; padding:12px 14px; margin-bottom:16px;">
+                    <div style="font-size:0.85rem; color:#16a34a; font-weight:700; margin-bottom:3px;">🤖 소크라테스 AI 피드백</div>
+                    <div style="font-size:1.05rem; color:#334155; line-height:1.6;">{row.get('answer', '-')}</div>
+                </div>
+                """, unsafe_allow_html=True)
+                
+        if st.button("닫기", use_container_width=True):
+            st.rerun()
+
+    # 6개 조 6분할 그리드 렌더링
     row1 = st.columns(3)
     row2 = st.columns(3)
     grid_cols = row1 + row2
@@ -266,7 +295,6 @@ if user_mode == "👨‍🏫 교사용 실시간 관제" and is_teacher_authoriz
         t_cnt = len(t_logs)
         
         with col:
-            # 상태 분석 (장난 감지 / 정체 조 감지)
             has_troll = False
             last_q = "-"
             last_a = "-"
@@ -278,7 +306,7 @@ if user_mode == "👨‍🏫 교사용 실시간 관제" and is_teacher_authoriz
             
             if has_troll:
                 card_style = "dash-card warn-troll"
-                status_badge = '<span class="badge-troll">🚨 비수학적 장난 감지</span>'
+                status_badge = '<span class="badge-troll">🚨 비수학적 질문 감지</span>'
             elif t_cnt == 0:
                 card_style = "dash-card warn-stuck"
                 status_badge = '<span class="badge-stuck">🟡 미참여 (순회 요망)</span>'
@@ -300,22 +328,26 @@ if user_mode == "👨‍🏫 교사용 실시간 관제" and is_teacher_authoriz
             if t_cnt > 0:
                 st.markdown(f"""
                     <div class="q-preview"><b>최근 질문:</b> {last_q}</div>
-                    <div class="a-preview"><b>AI 답변 요약:</b> {last_a[:100]}...</div>
+                    <div class="a-preview"><b>AI 답변:</b> {last_a[:95]}...</div>
                 </div>
                 """, unsafe_allow_html=True)
             else:
                 st.markdown("""
-                    <div style="color:#94a3b8; text-align:center; padding:50px 0; font-size:0.9rem;">
+                    <div style="color:#94a3b8; text-align:center; padding:38px 0; font-size:0.9rem;">
                         아직 전송된 질문이 없습니다.<br>1단계 작성을 독려해 주세요.
                     </div>
                 </div>
                 """, unsafe_allow_html=True)
+            
+            # 🔍 카드 하단 확대 버튼 (클릭 시 팝업 실행)
+            if st.button(f"🔍 {t_name} 전체 대화 확대", key=f"btn_detail_{t_name}", use_container_width=True):
+                show_team_detail_modal(t_name, t_logs)
                 
     if auto_refresh:
         time.sleep(8)
         st.rerun()
         
-    st.stop()  # 교사용 화면일 경우 학생 화면 렌더링 중단
+    st.stop()
 
 # =========================================================================
 # MODE B: 🤖 학생 모둠용 AI 튜터 화면 (1조 ~ 6조)
