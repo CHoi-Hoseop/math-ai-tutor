@@ -3,3 +3,4 @@ google-generativeai
 matplotlib
 numpy
 edge-tts
+requests
