@@ -5,39 +5,55 @@ import matplotlib.pyplot as plt
 import edge_tts
 import asyncio
 import requests
+import datetime
 
 # 1. 페이지 기본 설정 및 모둠용 대형 폰트 스타일 적용
 st.set_page_config(page_title="문화고 2학년 AI 튜터", page_icon="🤖", layout="wide")
 
 st.markdown("""
 <style>
-    /* 전체 제목 및 헤더 크기 조정 */
     h1 { font-size: 2.1rem !important; }
     h2, h3 { font-size: 1.5rem !important; }
-    
-    /* 채팅 말풍선 폰트 대폭 확대 (태블릿 시인성 확보) */
     .stChatMessage p, .stChatMessage li, .stChatMessage div {
         font-size: 1.15rem !important;
         line-height: 1.6 !important;
     }
-    
-    /* 버튼 텍스트 확대 */
     .stButton button {
         font-size: 1.05rem !important;
         font-weight: 600 !important;
         padding: 0.5rem 1rem !important;
     }
-    
-    /* 정보 알림 박스 폰트 확대 */
     .stAlert p {
         font-size: 1.1rem !important;
     }
 </style>
 """, unsafe_allow_html=True)
 
-st.title("🤖 [문화고등학교 2학년] 삼차함수 그래프의 비밀을 찾아라!")
-st.markdown("AI 튜터에게 수학적 용어로 질문을 던져 삼차함수에 숨겨진 **기하학적 비율 관계**를 찾아내세요.")
-st.markdown("---")
+# --- [시간 자동 계산 모듈] ---
+SCHEDULE = [
+    (1, datetime.time(8, 40), datetime.time(9, 30)),
+    (2, datetime.time(9, 40), datetime.time(10, 30)),
+    (3, datetime.time(10, 40), datetime.time(11, 30)),
+    (4, datetime.time(11, 40), datetime.time(12, 30)),
+    (5, datetime.time(13, 40), datetime.time(14, 30)),
+    (6, datetime.time(14, 40), datetime.time(15, 30)),
+    (7, datetime.time(15, 50), datetime.time(16, 40)),
+]
+
+def get_current_period_and_elapsed():
+    now = datetime.datetime.now()
+    cur_time = now.time()
+    
+    for period, start, end in SCHEDULE:
+        if start <= cur_time <= end:
+            start_dt = datetime.datetime.combine(now.date(), start)
+            elapsed = int((now - start_dt).total_seconds() // 60)
+            return period, elapsed
+            
+    # 정규 시간 외 테스트 중일 때는 기본값 제공
+    return "테스트", 15
+
+cur_period, elapsed_min = get_current_period_and_elapsed()
 
 # 2. 사이드바 설정 (조 선택 및 참관교사 모드)
 with st.sidebar:
@@ -50,6 +66,14 @@ with st.sidebar:
         st.info("선생님 환영합니다! 자유롭게 AI 튜터의 발문과 힌트 수준을 테스트해 보세요.")
     else:
         st.success(f"현재 **{team_name}** 모드로 탐구 중입니다.")
+    
+    st.markdown("---")
+    st.header("⏱️ 수업 타이머 현황")
+    if cur_period != "테스트":
+        st.metric(label=f"현재 {cur_period}교시 진행 상황", value=f"{elapsed_min}분 경과", delta=f"{max(0, 47 - elapsed_min)}분 남음")
+    else:
+        st.info("현재는 정규 수업 교시 외 시간(테스트 모드)입니다.")
+        
     st.markdown("---")
     st.caption("📌 **탐구 규칙:** 우리 조에서 합의한 질문을 태블릿으로 전송하고, 단서는 책상 위 종이 활동지에 기록하세요.")
 
@@ -69,6 +93,10 @@ def log_to_google_sheet(team, question, answer):
             pass
 
 # 4. 음성 가이드 영역 (Edge-TTS)
+st.title("🤖 [문화고등학교 2학년] 삼차함수 그래프의 비밀을 찾아라!")
+st.markdown("AI 튜터에게 수학적 용어로 질문을 던져 삼차함수에 숨겨진 **기하학적 비율 관계**를 찾아내세요.")
+st.markdown("---")
+
 st.markdown("### 🎧 AI 튜터 이용 가이드 (순서대로 재생 버튼을 눌러주세요)")
 
 def play_audio_guide(text):
@@ -101,7 +129,7 @@ with btn3:
 
 st.markdown("---")
 
-# 5. Gemini API 및 모델 설정
+# 5. Gemini API 및 시간대별 스캐폴딩 설정
 API_KEY = st.secrets["GEMINI_API_KEY"]
 genai.configure(api_key=API_KEY)
 
@@ -109,18 +137,16 @@ system_instruction = """
 너는 고등학교 미적분Ⅰ 수업에서 학생들의 탐구를 돕는 친절한 소크라테스식 AI 튜터야.
 학생들이 삼차함수 f(x) = x^3 - 3x 그래프의 극댓값(-1), 변곡점(0), 극솟값(1), 접선 교점(2) 사이의 '1:1:1' 및 '2:1' 비율 관계를 스스로 발견하도록 유도해야 해.
 
-[절대 지켜야 할 규칙]
-1. '2:1', '1:1:1' 같은 비율이나 정답을 절대 먼저 말하지 마.
-2. 학생이 질문하면 힌트가 될 만한 좌표나 함숫값, 기하학적 대칭성만 간결하게 제공해.
-3. 도함수 f'(x)가 이차함수라는 점과 그 대칭축(x=0)을 힌트로 주어, 삼차함수의 변곡점과 극값의 위치 관계를 추론하도록 이끌어.
-4. 학생의 질문에 대답한 후에는 반드시 다음 생각을 유도하는 '꼬리 질문'을 하나씩 던져.
-5. 학생이 수학 용어(극댓값, 변곡점, 대칭축, 접선 등)를 사용하면 적극적으로 칭찬해.
+[수업 시간대별 넛지(Nudge) 지침 - 총 수업 가용시간 47분]
+1. [초반: 0~12분 경과] 학생이 스스로 관찰하게 두고 정답이나 결정적 힌트는 삼가며, 묻는 좌표값만 간단히 알려줄 것.
+2. [중반: 13~26분 경과] 정체된 조가 있다면 답변 끝에 "👉 추천 질문: '아래쪽 이차함수의 대칭축 x=0은 위 삼차함수 그래프에서 어떤 위치야?'라고 나에게 물어보렴!"을 달아 방향을 잡아줄 것.
+3. [후반: 27~40분 경과] 시간이 얼마 없으므로 "👉 추천 질문: '극댓값을 지나는 접선 y=2가 삼차함수 곡선과 다시 만나는 점의 x좌표는 뭐야?'라고 물어보렴!"을 안내하여 1:1:1 비율을 완성하고 활동지 3단계 증명으로 넘어가게 촉진할 것.
+4. [마무리: 41분 이후] "탐구 시간이 마감되었습니다. 책상 위 활동지 3단계 대수적 증명을 완성하고 모둠 토의를 마무리하세요."라고 안내할 것.
 
-[자동 힌트 넛지(Nudge) 규칙]
-- 학생의 누적 질문 수가 3회 이상이 되었는데도 단순 좌표 질문만 맴돈다면:
-  답변 끝에 "👉 다음 질문 추천: '아래쪽 이차함수의 대칭축 x=0은 위 삼차함수 그래프에서 어떤 점이야?'라고 나에게 물어보세요!"를 덧붙여 질문을 견인해.
-- 학생이 극값 좌표를 파악했으나 비율을 못 찾고 있다면:
-  "👉 다음 질문 추천: '극댓값을 지나는 접선 y=2가 삼차함수 곡선과 다시 만나는 점의 x좌표는 뭐야?'라고 물어보세요!"를 제안해.
+[상시 원칙]
+- '2:1', '1:1:1'이라는 숫자를 절대 학생보다 먼저 직접 말하지 마.
+- 학생의 질문에 대답한 후에는 생각을 유도하는 '꼬리 질문'을 반드시 덧붙여.
+- 수학 용어(극값, 변곡점, 대칭축, 접선)를 사용하면 칭찬해.
 """
 
 model = genai.GenerativeModel(
@@ -173,7 +199,7 @@ with col1:
     ax1.legend(loc='upper left', fontsize=10)
     
     # [하단 그래프: f'(x)]
-    ax2.plot(x, dy, label="$f'(x) = 3x^2 - 3$", color="#ff7f0e", linewidth=2.5)
+    ax2.plot(x, dy, label="$f'(x) = 3x^2 - 3$", color="#ff7f0e", linewidth=2.2)
     ax2.spines['left'].set_position('zero')
     ax2.spines['bottom'].set_position('zero')
     ax2.spines['right'].set_color('none')
@@ -205,14 +231,12 @@ with col1:
 with col2:
     st.subheader("💬 소크라테스 AI 튜터")
     
-    # 채팅 스크롤 영역
     chat_container = st.container(height=480)
     with chat_container:
         for msg in st.session_state.messages:
             with st.chat_message(msg["role"]):
                 st.markdown(msg["content"])
 
-    # 💡 첫 질문 추천 칩 버튼 (가시성 및 입력 편의성 대폭 개선)
     st.markdown("##### 💡 추천 첫 질문 (누르면 바로 질문합니다)")
     q_col1, q_col2 = st.columns(2)
     
@@ -226,7 +250,6 @@ with col2:
 
     user_input = st.chat_input("AI 튜터에게 질문을 입력하세요")
     
-    # 추천 버튼 클릭 또는 직접 텍스트 입력 처리
     active_prompt = preset_query if preset_query else user_input
 
     if active_prompt:
@@ -238,7 +261,11 @@ with col2:
             with st.chat_message("assistant"):
                 with st.spinner("🤔 문화고 2학년 학생의 질문을 분석하고 있습니다..."):
                     try:
-                        res = st.session_state.chat.send_message(active_prompt)
+                        # 경과 시간 및 턴 수 메타데이터를 프롬프트에 동봉
+                        turn_count = len(st.session_state.messages) // 2
+                        prompt_with_meta = f"[수업 경과: {elapsed_min}분 / 누적 질문: {turn_count}회차]\n학생 질문: {active_prompt}"
+                        
+                        res = st.session_state.chat.send_message(prompt_with_meta)
                         bot_reply = res.text
                     except Exception as e:
                         bot_reply = f"일시적인 연결 지연이 발생했습니다: {e}"
