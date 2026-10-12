@@ -125,7 +125,34 @@ def get_current_period_and_elapsed():
 
 cur_period, elapsed_min = get_current_period_and_elapsed()
 
+# ==========================================
+# 4. 사이드바 및 교사용 PIN 보안 인증
+# ==========================================
+TEACHER_PIN = "1234"  # ★ 선생님 전용 비밀번호
 
+with st.sidebar:
+    st.header("👥 접속 모드 선택")
+    user_mode = st.selectbox(
+        "모둠 또는 관제 모드를 선택하세요",
+        ["1조", "2조", "3조", "4조", "5조", "6조", "👨‍🏫 교사용 실시간 관제"]
+    )
+    
+    is_teacher_authorized = False
+    if user_mode == "👨‍🏫 교사용 실시간 관제":
+        pin_input = st.text_input("교사용 PIN 번호 (4자리)", type="password")
+        if pin_input == TEACHER_PIN:
+            is_teacher_authorized = True
+            st.success("인증 완료: 관제 센터가 열렸습니다.")
+        elif pin_input:
+            st.error("PIN 번호가 일치하지 않습니다.")
+    else:
+        st.info(f"현재 **{user_mode}** 모드로 학습 중입니다.")
+        
+    st.markdown("---")
+    if cur_period != "테스트":
+        st.metric(label=f"{cur_period}교시 진행 시간", value=f"{elapsed_min}분 경과", delta=f"{max(0, 47 - elapsed_min)}분 남음")
+    else:
+        st.caption("수업 외 시간 (테스트 모드)")
 # =========================================================================
 # MODE C: 👀 참관교사용 실시간 수업 브리핑 & 관전 가이드 (무암호 오픈)
 # =========================================================================
@@ -204,34 +231,7 @@ if user_mode == "👀 참관교사용 실시간 브리핑":
         
     st.stop()
 
-# ==========================================
-# 4. 사이드바 및 교사용 PIN 보안 인증
-# ==========================================
-TEACHER_PIN = "1234"  # ★ 선생님 전용 비밀번호
 
-with st.sidebar:
-    st.header("👥 접속 모드 선택")
-    user_mode = st.selectbox(
-        "모둠 또는 관제 모드를 선택하세요",
-        ["1조", "2조", "3조", "4조", "5조", "6조", "👨‍🏫 교사용 실시간 관제"]
-    )
-    
-    is_teacher_authorized = False
-    if user_mode == "👨‍🏫 교사용 실시간 관제":
-        pin_input = st.text_input("교사용 PIN 번호 (4자리)", type="password")
-        if pin_input == TEACHER_PIN:
-            is_teacher_authorized = True
-            st.success("인증 완료: 관제 센터가 열렸습니다.")
-        elif pin_input:
-            st.error("PIN 번호가 일치하지 않습니다.")
-    else:
-        st.info(f"현재 **{user_mode}** 모드로 학습 중입니다.")
-        
-    st.markdown("---")
-    if cur_period != "테스트":
-        st.metric(label=f"{cur_period}교시 진행 시간", value=f"{elapsed_min}분 경과", delta=f"{max(0, 47 - elapsed_min)}분 남음")
-    else:
-        st.caption("수업 외 시간 (테스트 모드)")
 
 # =========================================================================
 # MODE A: 👨‍🏫 교사용 6분할 실시간 관제 센터 (PIN 인증 시 활성화)
