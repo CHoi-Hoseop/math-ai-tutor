@@ -126,17 +126,21 @@ def get_current_period_and_elapsed():
 cur_period, elapsed_min = get_current_period_and_elapsed()
 
 # ==========================================
-# 4. 사이드바 및 교사용 PIN 보안 인증
+# 4. 사이드바 및 모드 선택 (반드시 조건문보다 위에 위치!)
 # ==========================================
-TEACHER_PIN = "1234"  # ★ 선생님 전용 비밀번호
+TEACHER_PIN = "1234"
 
 with st.sidebar:
     st.header("👥 접속 모드 선택")
     user_mode = st.selectbox(
         "모둠 또는 관제 모드를 선택하세요",
-        ["1조", "2조", "3조", "4조", "5조", "6조", "👨‍🏫 교사용 실시간 관제"]
+        [
+            "1조", "2조", "3조", "4조", "5조", "6조", 
+            "👀 참관교사용 실시간 브리핑", 
+            "👨‍🏫 교사용 실시간 관제"
+        ]
     )
-    
+
     is_teacher_authorized = False
     if user_mode == "👨‍🏫 교사용 실시간 관제":
         pin_input = st.text_input("교사용 PIN 번호 (4자리)", type="password")
@@ -147,7 +151,7 @@ with st.sidebar:
             st.error("PIN 번호가 일치하지 않습니다.")
     else:
         st.info(f"현재 **{user_mode}** 모드로 학습 중입니다.")
-        
+
     st.markdown("---")
     if cur_period != "테스트":
         st.metric(label=f"{cur_period}교시 진행 시간", value=f"{elapsed_min}분 경과", delta=f"{max(0, 47 - elapsed_min)}분 남음")
