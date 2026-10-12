@@ -284,44 +284,13 @@ if user_mode == "👀 참관교사용 실시간 브리핑":
     st.stop()
 
 # =========================================================================
-# MODE B: 👨‍🏫 교사용 6분할 실시간 관제 전광판 (실시간 시계 + 4단계 타임라인 바 + 무깜빡임)
+# MODE B: 👨‍🏫 교사용 6분할 실시간 관제 전광판 (KST 실시간 시계 정상화)
 # =========================================================================
 if user_mode == "👨‍🏫 교사용 실시간 관제" and is_teacher_authorized:
     h_col1, h_col2 = st.columns([3.3, 1.2])
-    
     with h_col1:
-        st.markdown("""
-        <div style="display:flex; justify-content:space-between; align-items:center;">
-            <div>
-                <h1 style="margin:0; padding:0; font-size:1.9rem; font-weight:800;">🖥️ [교단 관제 전광판] 6개 조 실시간 탐구 현황</h1>
-                <p style="margin:4px 0 0 0; color:#64748b; font-size:0.92rem;">질문 버튼을 누르면 해당 조의 전체 대화록이 화면 중앙에 고해상도로 확대됩니다.</p>
-            </div>
-            <div style="background:#0f172a; color:#38bdf8; padding:8px 16px; border-radius:10px; font-family:monospace; text-align:right; border:1px solid #1e293b;">
-                <div style="font-size:0.75rem; color:#94a3b8; font-weight:700; letter-spacing:1px;">KST REAL-TIME</div>
-                <div id="live-clock" style="font-size:1.6rem; font-weight:800; line-height:1.1;">--:--:--</div>
-            </div>
-        </div>
-
-        <script>
-        function updateClock() {
-            const now = new Date();
-            const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
-            const kstDate = new Date(utc + (9 * 60 * 60000));
-            
-            const hours = String(kstDate.getHours()).padStart(2, '0');
-            const minutes = String(kstDate.getMinutes()).padStart(2, '0');
-            const seconds = String(kstDate.getSeconds()).padStart(2, '0');
-            
-            const clockEl = document.getElementById('live-clock');
-            if (clockEl) {
-                clockEl.textContent = `${hours}:${minutes}:${seconds}`;
-            }
-        }
-        setInterval(updateClock, 1000);
-        updateClock();
-        </script>
-        """, unsafe_allow_html=True)
-
+        st.title("🖥️ [교단 관제 전광판] 6개 조 실시간 탐구 현황")
+        st.caption("질문 버튼을 누르면 해당 조의 전체 대화록이 화면 중앙에 고해상도로 확대됩니다.")
     with h_col2:
         st.write("")
         col_b1, col_b2 = st.columns(2)
@@ -336,36 +305,7 @@ if user_mode == "👨‍🏫 교사용 실시간 관제" and is_teacher_authoriz
                 conn.close()
                 st.success("데이터가 초기화되었습니다.")
                 st.rerun()
-            
-    # ── 교사용 4단계 타임라인 진행 바 (현재 경과 시간에 맞춰 파란불 점등) ──
-    s1_cls = "active" if elapsed_min <= 10 else ""
-    s2_cls = "active" if 10 < elapsed_min <= 25 else ""
-    s3_cls = "active" if 25 < elapsed_min <= 40 else ""
-    s4_cls = "active" if elapsed_min > 40 else ""
-    
-    st.markdown(f"""
-    <div class="timeline-wrap" style="margin-top:14px; margin-bottom:14px;">
-        <div class="tl-step {s1_cls}">
-            <b>1단계. 문제 제기</b>
-            <span class="tl-step-time">0~10분 (첫 발문 형성)</span>
-        </div>
-        <div class="tl-step {s2_cls}">
-            <b>2단계. AI 기하 탐구</b>
-            <span class="tl-step-time">10~25분 (1:1:1 발견)</span>
-        </div>
-        <div class="tl-step {s3_cls}">
-            <b>3단계. 대수적 정당화</b>
-            <span class="tl-step-time">25~40분 (2:1 증명)</span>
-        </div>
-        <div class="tl-step {s4_cls}">
-            <b>4단계. 정리 및 심화</b>
-            <span class="tl-step-time">40~47분 (1:√3 확장)</span>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
-    
-    st.markdown("---")
-    
+
     # 대형 모달 팝업 함수
     @st.dialog("📋 모둠 탐구 상세 내역", width="large")
     def show_team_detail_modal(team_name, team_data):
@@ -394,9 +334,61 @@ if user_mode == "👨‍🏫 교사용 실시간 관제" and is_teacher_authoriz
         if st.button("닫기", use_container_width=True):
             st.rerun()
 
-    # 6개 조 카드 영역만 8초마다 부드럽게 부분 갱신
+    # 🕒 상단 시계 + 타임라인 + 6개 조 카드를 통합 부분 갱신 (8초 간격)
     @st.fragment(run_every="8s")
-    def render_team_dashboard():
+    def render_live_dashboard():
+        # 1. KST 현재 시각 및 교시 실시간 산출
+        utc_now = datetime.datetime.now(datetime.timezone.utc)
+        kst_now = utc_now + datetime.timedelta(hours=9)
+        time_display = kst_now.strftime("%H:%M:%S")
+        
+        cur_p, elap = get_current_period_and_elapsed()
+
+        # 2. 상단 디지털 시계 표시 바
+        st.markdown(f"""
+        <div style="display:flex; justify-content:space-between; align-items:center; background:#0f172a; padding:10px 18px; border-radius:10px; margin-bottom:12px;">
+            <div style="color:#e2e8f0; font-size:1.05rem; font-weight:700;">
+                🏫 문화고등학교 미적분Ⅰ 관제 시스템 <span style="color:#94a3b8; font-size:0.85rem; font-weight:500;">(경북 경주)</span>
+            </div>
+            <div style="display:flex; align-items:center; gap:16px;">
+                <div style="color:#94a3b8; font-size:0.9rem; font-weight:600;">
+                    {f"{cur_p}교시 ({elap}분 경과)" if cur_p != "테스트" else "수업 외 시간 (테스트 모드)"}
+                </div>
+                <div style="background:#1e293b; color:#38bdf8; padding:4px 12px; border-radius:6px; font-family:monospace; font-size:1.35rem; font-weight:800; border:1px solid #334155;">
+                    ⏱️ {time_display}
+                </div>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+        # 3. 4단계 타임라인 진행 바
+        s1_cls = "active" if elap <= 10 else ""
+        s2_cls = "active" if 10 < elap <= 25 else ""
+        s3_cls = "active" if 25 < elap <= 40 else ""
+        s4_cls = "active" if elap > 40 else ""
+        
+        st.markdown(f"""
+        <div class="timeline-wrap" style="margin-top:4px; margin-bottom:16px;">
+            <div class="tl-step {s1_cls}">
+                <b>1단계. 문제 제기</b>
+                <span class="tl-step-time">0~10분 (첫 발문 형성)</span>
+            </div>
+            <div class="tl-step {s2_cls}">
+                <b>2단계. AI 기하 탐구</b>
+                <span class="tl-step-time">10~25분 (1:1:1 발견)</span>
+            </div>
+            <div class="tl-step {s3_cls}">
+                <b>3단계. 대수적 정당화</b>
+                <span class="tl-step-time">25~40분 (2:1 증명)</span>
+            </div>
+            <div class="tl-step {s4_cls}">
+                <b>4단계. 정리 및 심화</b>
+                <span class="tl-step-time">40~47분 (1:√3 확장)</span>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+        # 4. 6개 조 카드 렌더링
         df_all = get_logs()
         row1 = st.columns(3)
         row2 = st.columns(3)
@@ -418,8 +410,6 @@ if user_mode == "👨‍🏫 교사용 실시간 관제" and is_teacher_authoriz
                         t_str = str(last_row.get("timestamp", ""))
                         if t_str:
                             t_dt = pd.to_datetime(t_str)
-                            utc_now = datetime.datetime.now(datetime.timezone.utc)
-                            kst_now = utc_now + datetime.timedelta(hours=9)
                             diff_sec = (kst_now.replace(tzinfo=None) - t_dt).total_seconds()
                             diff_min = max(0, int(diff_sec // 60))
                             time_badge = f'<span class="badge-time">{diff_min}분 전</span>'
@@ -464,7 +454,7 @@ if user_mode == "👨‍🏫 교사용 실시간 관제" and is_teacher_authoriz
                             </div>
                             """, unsafe_allow_html=True)
 
-    render_team_dashboard()
+    render_live_dashboard()
     st.stop()
 # =========================================================================
 # MODE C: 🤖 학생 모둠용 AI 튜터 화면 (1조 ~ 6조, 1.15 : 0.85 비율 최적화)
