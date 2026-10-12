@@ -238,13 +238,13 @@ if user_mode == "👀 참관교사용 실시간 브리핑":
 
 
 # =========================================================================
-# MODE A: 👨‍🏫 교사용 6분할 실시간 관제 센터 (상세 팝업 확대 기능 탑재)
-# ==========================================
+# MODE A: 👨‍🏫 교사용 6분할 실시간 관제 센터 (질문창 클릭 시 팝업 확대)
+# =========================================================================
 if user_mode == "👨‍🏫 교사용 실시간 관제" and is_teacher_authorized:
     h_col1, h_col2 = st.columns([3, 1])
     with h_col1:
         st.title("🖥️ [교단 관제 전광판] 6개 조 실시간 탐구 현황")
-        st.caption("카드의 '🔍 확대 보기'를 누르면 해당 조의 전체 탐구 대화록이 대형 화면으로 팝업됩니다.")
+        st.caption("각 조의 **질문 말풍선 박스**를 터치/클릭하면 해당 조의 전체 대화록이 대형 화면으로 확대됩니다.")
     with h_col2:
         st.write("")
         auto_refresh = st.checkbox("🔄 8초 자동 갱신", value=True)
@@ -255,7 +255,7 @@ if user_mode == "👨‍🏫 교사용 실시간 관제" and is_teacher_authoriz
     
     df_all = get_logs()
     
-    # 🔍 모달 팝업 함수 정의 (전자칠판 전용 대형 뷰어)
+    # 🔍 대형 모달 팝업 함수
     @st.dialog("📋 모둠 탐구 상세 내역", width="large")
     def show_team_detail_modal(team_name, team_data):
         st.markdown(f"### 🏷️ **{team_name} 실시간 전체 대화록** (총 {len(team_data)}회 문답)")
@@ -283,7 +283,7 @@ if user_mode == "👨‍🏫 교사용 실시간 관제" and is_teacher_authoriz
         if st.button("닫기", use_container_width=True):
             st.rerun()
 
-    # 6개 조 6분할 그리드 렌더링
+    # 6개 조 그리드 렌더링
     row1 = st.columns(3)
     row2 = st.columns(3)
     grid_cols = row1 + row2
@@ -314,6 +314,7 @@ if user_mode == "👨‍🏫 교사용 실시간 관제" and is_teacher_authoriz
                 card_style = "dash-card"
                 status_badge = '<span class="badge-ok">🟢 순항 중</span>'
                 
+            # 조 헤더 카드 렌더링
             st.markdown(f"""
             <div class="{card_style}">
                 <div class="dash-header">
@@ -326,22 +327,22 @@ if user_mode == "👨‍🏫 교사용 실시간 관제" and is_teacher_authoriz
             """, unsafe_allow_html=True)
             
             if t_cnt > 0:
+                # 👈 별도 버튼 대신 질문 텍스트 자체를 클릭 가능한 버튼으로 매핑
+                btn_label = f"💬 Q. {last_q[:28]}..." if len(last_q) > 28 else f"💬 Q. {last_q}"
+                if st.button(btn_label, key=f"q_click_{t_name}", use_container_width=True, help="클릭 시 전체 대화 내역이 확대됩니다."):
+                    show_team_detail_modal(t_name, t_logs)
+                
                 st.markdown(f"""
-                    <div class="q-preview"><b>최근 질문:</b> {last_q}</div>
-                    <div class="a-preview"><b>AI 답변:</b> {last_a[:95]}...</div>
+                    <div class="a-preview" style="margin-top:6px;"><b>AI:</b> {last_a[:85]}...</div>
                 </div>
                 """, unsafe_allow_html=True)
             else:
                 st.markdown("""
-                    <div style="color:#94a3b8; text-align:center; padding:38px 0; font-size:0.9rem;">
+                    <div style="color:#94a3b8; text-align:center; padding:35px 0; font-size:0.9rem;">
                         아직 전송된 질문이 없습니다.<br>1단계 작성을 독려해 주세요.
                     </div>
                 </div>
                 """, unsafe_allow_html=True)
-            
-            # 🔍 카드 하단 확대 버튼 (클릭 시 팝업 실행)
-            if st.button(f"🔍 {t_name} 전체 대화 확대", key=f"btn_detail_{t_name}", use_container_width=True):
-                show_team_detail_modal(t_name, t_logs)
                 
     if auto_refresh:
         time.sleep(8)
