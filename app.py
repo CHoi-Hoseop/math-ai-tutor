@@ -2,8 +2,8 @@ import streamlit as st
 import google.generativeai as genai
 import numpy as np
 import matplotlib.pyplot as plt
-import edge_tts
-import asyncio
+from gtts import gTTS  # edge_tts 대신 사용
+import io
 import datetime
 import time
 import sqlite3
@@ -420,18 +420,16 @@ else:
 
 # 오디오 가이드 (학생 모둠용)
 def play_audio_guide(text):
-    async def _generate_audio():
-        communicate = edge_tts.Communicate(text, "ko-KR-SunHiNeural")
-        audio_bytes = b""
-        async for chunk in communicate.stream():
-            if chunk["type"] == "audio":
-                audio_bytes += chunk["data"]
-        return audio_bytes
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    audio_data = loop.run_until_complete(_generate_audio())
-    loop.close()
-    st.audio(audio_data, format='audio/mp3', autoplay=True)
+    try:
+        # Google TTS로 안전하게 한국어 음성 바이트 생성 (웹소켓 오류 원천 차단)
+        sound_file = io.BytesIO()
+        tts = gTTS(text=text, lang='ko')
+        tts.write_to_fp(sound_file)
+        sound_file.seek(0)
+        st.audio(sound_file.read(), format='audio/mp3', autoplay=True)
+    except Exception as e:
+        # 만약 클라우드 네트워크가 불안정할 경우 앱이 튕기지 않고 안내 문구만 표출
+        st.warning(f"💡 음성 안내: {text}")
 
 if not is_guest_mode:
     b1, b2, b3 = st.columns(3)
