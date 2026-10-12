@@ -118,10 +118,17 @@ def init_db():
 
 def save_log(team, question, answer, is_troll=0):
     try:
+        # 한국 표준시(KST, UTC+9) 직접 계산
+        utc_now = datetime.datetime.now(datetime.timezone.utc)
+        kst_now = utc_now + datetime.timedelta(hours=9)
+        kst_time_str = kst_now.strftime("%Y-%m-%d %H:%M:%S")  # 예: 2026-10-12 15:45:20
+
         conn = sqlite3.connect(DB_FILE, check_same_thread=False)
         c = conn.cursor()
-        c.execute("INSERT INTO logs (team, question, answer, is_troll) VALUES (?, ?, ?, ?)",
-                  (team, question, answer, is_troll))
+        c.execute("""
+            INSERT INTO logs (team, question, answer, is_troll, timestamp) 
+            VALUES (?, ?, ?, ?, ?)
+        """, (team, question, answer, is_troll, kst_time_str))
         conn.commit()
         conn.close()
     except Exception:
@@ -286,8 +293,18 @@ if user_mode == "👨‍🏫 교사용 실시간 관제" and is_teacher_authoriz
         st.caption("질문 버튼을 누르면 해당 조의 전체 대화록이 화면 중앙에 고해상도로 확대됩니다.")
     with h_col2:
         st.write("")
-        if st.button("🔄 즉시 수동 갱신", use_container_width=True):
-            st.rerun()
+        col_b1, col_b2 = st.columns(2)
+        with col_b1:
+            if st.button("🔄 즉시 수동 갱신", use_container_width=True):
+                st.rerun()
+        with col_b2:
+            if st.button("🧹 DB 전체 초기화", use_container_width=True, help="수업 시작 전 기존 테스트 질문 기록을 모두 삭제합니다."):
+                conn = sqlite3.connect(DB_FILE, check_same_thread=False)
+                conn.cursor().execute("DELETE FROM logs")
+                conn.commit()
+                conn.close()
+                st.success("모든 조의 데이터가 초기화되었습니다.")
+                st.rerun()
             
     st.markdown("---")
     
