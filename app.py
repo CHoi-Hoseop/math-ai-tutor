@@ -20,7 +20,7 @@ with st.sidebar:
         ["1조", "2조", "3조", "4조", "5조", "6조", "👨‍🏫 참관교사"]
     )
     if team_name == "👨‍🏫 참관교사":
-        st.info("선생님 환영합니다! 자유롭게 AI 튜터의 소크라테스식 발문과 힌트 수준을 테스트해 보세요.")
+        st.info("선생님 환영합니다! 자유롭게 AI 튜터의 발문과 힌트 수준을 테스트해 보세요.")
     else:
         st.success(f"현재 **{team_name}** 모드로 탐구 중입니다.")
     st.markdown("---")
@@ -38,7 +38,6 @@ def log_to_google_sheet(team, question, answer):
                 "question": question,
                 "answer": answer
             }
-            # 백그라운드 전송 (타임아웃 1.5초 설정으로 학생 화면 지연 차단)
             requests.post(WEBHOOK_URL, json=payload, timeout=1.5)
         except Exception:
             pass
@@ -98,13 +97,11 @@ system_instruction = """
   "👉 다음 질문 추천: '극댓값을 지나는 접선 y=2가 삼차함수 곡선과 다시 만나는 점의 x좌표는 뭐야?'라고 물어보세요!"를 제안해.
 """
 
-# 모델 초기화
 model = genai.GenerativeModel(
     model_name="gemini-1.5-flash",
     system_instruction=system_instruction
 )
 
-# 세션 초기화
 if "messages" not in st.session_state:
     st.session_state.messages = []
 if "chat" not in st.session_state:
@@ -142,11 +139,11 @@ with col1:
     ax1.set_ylim(-4.5, 4.5)
     ax1.text(-0.25, -0.45, 'O', fontsize=11, fontstyle='italic')
     
-    # 극대/극소 접선
-    ax1.axhline(2, color='red', alpha=0.45, linestyle=':', label="극대 접선 $y=2$")
-    ax1.axhline(-2, color='blue', alpha=0.45, linestyle=':', label="극소 접선 $y=-2$")
+    # 한글 깨짐 방지: 수식 라벨 적용
+    ax1.axhline(2, color='red', alpha=0.45, linestyle=':', label="$y = 2$")
+    ax1.axhline(-2, color='blue', alpha=0.45, linestyle=':', label="$y = -2$")
     
-    # 핵심 접선 교점 마커 표시 (2, 2) 및 (-2, -2)
+    # 핵심 접선 교점 마커 (2, 2) 및 (-2, -2)
     ax1.plot([2], [2], marker='o', markersize=6, color='red')
     ax1.plot([-2], [-2], marker='o', markersize=6, color='blue')
     
@@ -172,17 +169,16 @@ with col1:
     ax2.grid(True, alpha=0.25, linestyle='--')
     ax2.legend(loc='upper center', fontsize=9)
     
-    # [핵심 수직 보조선: x = -2, -1, 0, 1, 2]
-    # -1, 0, 1은 강조 회색 점선 / -2, 2는 확장 보조 점선
+    # [위아래 그래프 공통 수직 보조선: x = -2, -1, 0, 1, 2]
     for ax in [ax1, ax2]:
-        ax.axvline(0, color='purple', alpha=0.6, linestyle='--', linewidth=1.2)  # 변곡/대칭축
-        ax.axvline(-1, color='gray', alpha=0.6, linestyle='--', linewidth=1.2)  # 극대
-        ax.axvline(1, color='gray', alpha=0.6, linestyle='--', linewidth=1.2)   # 극소
-        ax.axvline(-2, color='blue', alpha=0.35, linestyle=':', linewidth=1.0)  # 교점 확장
-        ax.axvline(2, color='red', alpha=0.35, linestyle=':', linewidth=1.0)    # 교점 확장
+        ax.axvline(0, color='purple', alpha=0.6, linestyle='--', linewidth=1.2)   # 변곡점/도함수 대칭축
+        ax.axvline(-1, color='gray', alpha=0.6, linestyle='--', linewidth=1.2)   # 극댓값
+        ax.axvline(1, color='gray', alpha=0.6, linestyle='--', linewidth=1.2)    # 극솟값
+        ax.axvline(-2, color='blue', alpha=0.35, linestyle=':', linewidth=1.0)   # 접선 교점 (-2)
+        ax.axvline(2, color='red', alpha=0.35, linestyle=':', linewidth=1.0)     # 접선 교점 (2)
     
     st.pyplot(fig)
-    st.info("💡 **관찰 포인트:** 보조선이 그어진 $x = -1, 0, 1, 2$ 사이의 간격에 어떤 규칙이 보이나요?")
+    st.info("💡 **관찰 포인트:** 세로 보조선이 그어진 $x = -2, -1, 0, 1, 2$ 사이의 간격에 어떤 규칙이 보이나요?")
 
 with col2:
     st.subheader("💬 소크라테스 AI 튜터")
@@ -213,5 +209,5 @@ with col2:
                     st.markdown(bot_reply)
                     st.session_state.messages.append({"role": "assistant", "content": bot_reply})
                     
-                    # 구글 시트로 조 이름, 질문, AI 답변 실시간 전송
+                    # 조 이름, 질문, AI 답변 전송
                     log_to_google_sheet(team_name, user_input, bot_reply)
