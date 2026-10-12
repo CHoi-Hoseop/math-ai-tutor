@@ -277,22 +277,21 @@ if user_mode == "👀 참관교사용 실시간 브리핑":
     st.stop()
 
 # =========================================================================
-# MODE B: 👨‍🏫 교사용 6분할 실시간 관제 전광판 (말풍선 터치 팝업 + 상대시간 배지)
+# MODE B: 👨‍🏫 교사용 6분할 실시간 관제 전광판 (부분 리렌더링으로 깜빡임 제거)
 # =========================================================================
 if user_mode == "👨‍🏫 교사용 실시간 관제" and is_teacher_authorized:
     h_col1, h_col2 = st.columns([3, 1])
     with h_col1:
         st.title("🖥️ [교단 관제 전광판] 6개 조 실시간 탐구 현황")
-        st.caption("질문 말풍선을 터치하면 해당 조의 전체 대화록이 화면 중앙에 고해상도로 확대됩니다.")
+        st.caption("질문 버튼을 누르면 해당 조의 전체 대화록이 화면 중앙에 고해상도로 확대됩니다.")
     with h_col2:
         st.write("")
-        auto_refresh = st.checkbox("🔄 8초 자동 갱신", value=True)
-        if st.button("즉시 갱신", use_container_width=True):
+        if st.button("🔄 즉시 수동 갱신", use_container_width=True):
             st.rerun()
             
     st.markdown("---")
-    df_all = get_logs()
     
+    # 🔍 대형 모달 팝업 함수
     @st.dialog("📋 모둠 탐구 상세 내역", width="large")
     def show_team_detail_modal(team_name, team_data):
         st.markdown(f"### 🏷️ **{team_name} 실시간 전체 대화록** (총 {len(team_data)}회 문답)")
@@ -320,84 +319,80 @@ if user_mode == "👨‍🏫 교사용 실시간 관제" and is_teacher_authoriz
         if st.button("닫기", use_container_width=True):
             st.rerun()
 
-    row1 = st.columns(3)
-    row2 = st.columns(3)
-    grid_cols = row1 + row2
-    team_list = ["1조", "2조", "3조", "4조", "5조", "6조"]
-    
-    for idx, t_name in enumerate(team_list):
-        col = grid_cols[idx]
-        t_logs = df_all[df_all["team"] == t_name] if not df_all.empty else pd.DataFrame()
-        t_cnt = len(t_logs)
+    # ★ 6개 조 카드 영역만 8초마다 부드럽게 부분 갱신 (전체 화면 깜빡임 차단)
+    @st.fragment(run_every="8s")
+    def render_team_dashboard():
+        df_all = get_logs()
+        row1 = st.columns(3)
+        row2 = st.columns(3)
+        grid_cols = row1 + row2
+        team_list = ["1조", "2조", "3조", "4조", "5조", "6조"]
         
-        with col:
-            has_troll = False
-            last_q = "-"
-            last_a = "-"
-            time_badge = ""
+        for idx, t_name in enumerate(team_list):
+            col = grid_cols[idx]
+            t_logs = df_all[df_all["team"] == t_name] if not df_all.empty else pd.DataFrame()
+            t_cnt = len(t_logs)
             
-            if t_cnt > 0:
-                last_row = t_logs.iloc[-1]
-                last_q = str(last_row.get("question", "-"))
-                last_a = str(last_row.get("answer", "-"))
-                has_troll = (last_row.get("is_troll", 0) == 1)
+            with col:
+                # 상태 배지 계산
+                has_troll = False
+                time_badge = ""
+                if t_cnt > 0:
+                    last_row = t_logs.iloc[-1]
+                    has_troll = (last_row.get("is_troll", 0) == 1)
+                    try:
+                        t_str = str(last_row.get("timestamp", ""))
+                        if t_str:
+                            t_dt = pd.to_datetime(t_str)
+                            diff_sec = (datetime.datetime.utcnow() - t_dt).total_seconds()
+                            diff_min = max(0, int(diff_sec // 60))
+                            time_badge = f'<span class="badge-time">{diff_min}분 전</span>'
+                    except Exception:
+                        time_badge = ""
                 
-                # 상대 경과 시간 계산
-                try:
-                    t_str = str(last_row.get("timestamp", ""))
-                    if t_str:
-                        t_dt = pd.to_datetime(t_str)
-                        diff_sec = (datetime.datetime.utcnow() - t_dt).total_seconds()
-                        diff_min = max(0, int(diff_sec // 60))
-                        time_badge = f'<span class="badge-time">{diff_min}분 전</span>'
-                except Exception:
-                    time_badge = ""
-            
-            if has_troll:
-                card_style = "dash-card warn-troll"
-                status_badge = '<span class="badge-troll">🚨 비수학적 질문 감지</span>'
-            elif t_cnt == 0:
-                card_style = "dash-card warn-stuck"
-                status_badge = '<span class="badge-stuck">🟡 미참여 (순회 요망)</span>'
-            else:
-                card_style = "dash-card"
-                status_badge = '<span class="badge-ok">🟢 순항 중</span>'
-                
-            st.markdown(f"""
-            <div class="{card_style}">
-                <div class="dash-header">
-                    <span class="dash-title">{t_name}</span>
-                    <div>
-                        {status_badge}
-                        <span style="font-size:0.8rem; font-weight:700; margin-left:4px; color:#475569;">({t_cnt}회)</span>
-                        {time_badge}
-                    </div>
-                </div>
-            """, unsafe_allow_html=True)
-            
-            if t_cnt > 0:
-                btn_txt = f"💬 Q. {last_q[:30]}..." if len(last_q) > 30 else f"💬 Q. {last_q}"
-                if st.button(btn_txt, key=f"q_click_{t_name}", use_container_width=True, help="클릭 시 전체 대화 내역이 확대됩니다."):
-                    show_team_detail_modal(t_name, t_logs)
-                
+                if has_troll:
+                    status_badge = '<span class="badge-troll">🚨 비수학적 질문</span>'
+                elif t_cnt == 0:
+                    status_badge = '<span class="badge-stuck">🟡 미참여 (0회)</span>'
+                else:
+                    status_badge = f'<span class="badge-ok">🟢 순항 중 ({t_cnt}회)</span>'
+
                 st.markdown(f"""
-                    <div class="a-preview-box"><b>AI 요약:</b> {last_a[:85]}...</div>
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; padding:0 2px;">
+                    <span style="font-size:1.3rem; font-weight:800; color:#0f172a;">{t_name}</span>
+                    <div>{status_badge}{time_badge}</div>
                 </div>
                 """, unsafe_allow_html=True)
-            else:
-                st.markdown("""
-                    <div style="color:#94a3b8; text-align:center; padding:45px 0; font-size:0.9rem;">
-                        아직 전송된 질문이 없습니다.<br>1단계 작성을 독려해 주세요.
-                    </div>
-                </div>
-                """, unsafe_allow_html=True)
-                
-    if auto_refresh:
-        time.sleep(8)
-        st.rerun()
+
+                # 자체 스크롤 카드 컨테이너
+                card_box = st.container(height=260)
+                with card_box:
+                    if t_cnt == 0:
+                        st.markdown("""
+                        <div style="color:#94a3b8; text-align:center; padding-top:85px; font-size:0.92rem; line-height:1.6;">
+                            아직 전송된 질문이 없습니다.<br>
+                            1단계 질문 작성을 독려해 주세요.
+                        </div>
+                        """, unsafe_allow_html=True)
+                    else:
+                        for q_idx, r in t_logs.iterrows():
+                            q_text = str(r.get('question', '-'))
+                            a_text = str(r.get('answer', '-'))
+                            
+                            btn_label = f"💬 Q{q_idx+1}. {q_text}"
+                            if st.button(btn_label, key=f"q_btn_{t_name}_{q_idx}", use_container_width=True, help="클릭 시 전체 대화가 확대됩니다."):
+                                show_team_detail_modal(t_name, t_logs)
+                                
+                            st.markdown(f"""
+                            <div style="background:#f8fafc; border-left:3px solid #cbd5e1; padding:7px 10px; border-radius:4px; font-size:0.85rem; color:#334155; margin-bottom:10px; line-height:1.45;">
+                                <b>AI:</b> {a_text[:85]}...
+                            </div>
+                            """, unsafe_allow_html=True)
+
+    # 대시보드 렌더링 호출
+    render_team_dashboard()
         
     st.stop()
-
 # =========================================================================
 # MODE C: 🤖 학생 모둠용 AI 튜터 화면 (1조 ~ 6조, 1.15 : 0.85 비율 최적화)
 # =========================================================================
