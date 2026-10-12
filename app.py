@@ -97,7 +97,7 @@ def get_logs():
 init_db()
 
 # ==========================================
-# 3. 문화고등학교 교시별 시간 모듈
+# 3. 문화고등학교 교시별 시간 모듈 (한국 표준시 KST 고정)
 # ==========================================
 SCHEDULE = [
     (1, datetime.time(8, 40), datetime.time(9, 30)),
@@ -110,16 +110,99 @@ SCHEDULE = [
 ]
 
 def get_current_period_and_elapsed():
-    now = datetime.datetime.now()
-    cur_time = now.time()
+    # UTC 기준 서버 시각에 9시간을 더해 한국 시각(KST)으로 변환
+    utc_now = datetime.datetime.now(datetime.timezone.utc)
+    kst_now = utc_now + datetime.timedelta(hours=9)
+    cur_time = kst_now.time()
+    
     for period, start, end in SCHEDULE:
         if start <= cur_time <= end:
-            start_dt = datetime.datetime.combine(now.date(), start)
-            elapsed = int((now - start_dt).total_seconds() // 60)
+            start_dt = datetime.datetime.combine(kst_now.date(), start, tzinfo=kst_now.tzinfo)
+            elapsed = int((kst_now - start_dt).total_seconds() // 60)
             return period, elapsed
+            
     return "테스트", 15
 
 cur_period, elapsed_min = get_current_period_and_elapsed()
+
+
+# =========================================================================
+# MODE C: 👀 참관교사용 실시간 수업 브리핑 & 관전 가이드 (무암호 오픈)
+# =========================================================================
+if user_mode == "👀 참관교사용 실시간 브리핑":
+    st.title("📋 2026 문화고 연구수업 참관 가이드 & 실시간 관제")
+    st.caption("2학년 미적분Ⅰ: 소크라테스 AI 튜터 기반 삼차함수 그래프의 비율 관계 탐구")
+    
+    # 1. 수업 개요 및 타임라인 배너
+    t_col1, t_col2, t_col3 = st.columns([1.2, 1.8, 1])
+    with t_col1:
+        st.markdown("""
+        **[수업 정보]**
+        - **일시/장소:** 2학년 수학교실
+        - **수업자:** 최호섭 선생님
+        - **환경:** 모둠별 태블릿 + A4 양면 활동지
+        """)
+    with t_col2:
+        st.markdown(f"""
+        **[수업 진행 단계 (47분 가용)]**
+        - 현재: **{cur_period}교시 ({elapsed_min}분 경과)**
+        - 0~10분: 문제 제기 및 AI 프롬프트 첫 발문
+        - 10~25분: 핵심 4개 x좌표 탐색 및 1:1:1 기하학적 발견
+        - 25~40분: 조립제법 기반 2:1 대수적 정당화(증명)
+        - 40~47분: 1:√3 확장 안내 및 모둠 자기평가
+        """)
+    with t_col3:
+        if st.button("🔄 실시간 갱신", use_container_width=True):
+            st.rerun()
+            
+    st.markdown("---")
+    
+    # 2. 참관 관전 포인트 3선
+    st.subheader("💡 오늘의 참관 관전 포인트 (Focus Points)")
+    p1, p2, p3 = st.columns(3)
+    with p1:
+        st.info("""
+        **1. 수학적 발문의 정교화**  
+        학생들이 단순히 "답 알려줘"가 아니라, *극댓값, 극솟값, 도함수의 대칭축(변곡점)* 등 정확한 교과 어휘로 AI에게 단서를 캐내는지 관찰해 주세요.
+        """)
+    with p2:
+        st.success("""
+        **2. 활동지 하이브리드 연계**  
+        AI 답변을 보고 끝내는 것이 아니라, 모둠원과 토의하여 **종이 활동지 2단계 그래프에 직접 자를 대고 보조선과 1:1:1 간격을 채우는지** 확인해 주세요.
+        """)
+    with p3:
+        st.warning("""
+        **3. 기하학에서 대수로의 증명**  
+        눈으로 본 2:1 비율을 $x^3 - 3x - 2 = 0$ 인수분해를 통해 **손으로 직접 증명해내는 정당화 과정**에 도달하는지 지켜봐 주세요.
+        """)
+        
+    st.markdown("---")
+    
+    # 3. 실시간 모둠별 탐구 피드 (실시간 로그 열람)
+    st.subheader("📡 모둠별 실시간 AI 대화 피드")
+    df_obs = get_logs()
+    
+    if not df_obs.empty:
+        obs_cols = st.columns(3)
+        for i, t_name in enumerate(["1조", "2조", "3조", "4조", "5조", "6조"]):
+            c = obs_cols[i % 3]
+            t_sub = df_obs[df_obs["team"] == t_name]
+            with c:
+                st.markdown(f"##### 🏷️ {t_name} (총 {len(t_sub)}회 대화)")
+                if len(t_sub) > 0:
+                    last_item = t_sub.iloc[-1]
+                    st.markdown(f"""
+                    <div style="background:#f8fafc; border:1px solid #cbd5e1; border-radius:8px; padding:10px; margin-bottom:12px; font-size:0.9rem;">
+                        <p style="color:#1d4ed8; font-weight:700; margin-bottom:4px;">Q. {last_item['question']}</p>
+                        <p style="color:#334155; margin-bottom:0; font-size:0.85rem;"><b>AI:</b> {last_item['answer'][:120]}...</p>
+                    </div>
+                    """, unsafe_allow_html=True)
+                else:
+                    st.caption("아직 첫 질문 탐색 전입니다.")
+    else:
+        st.info("아직 전송된 모둠별 대화 기록이 없습니다.")
+        
+    st.stop()
 
 # ==========================================
 # 4. 사이드바 및 교사용 PIN 보안 인증

@@ -4,3 +4,4 @@ matplotlib
 numpy
 edge-tts
 requests
+pandas
