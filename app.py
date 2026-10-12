@@ -146,7 +146,7 @@ def get_logs():
 init_db()
 
 # ==========================================
-# 3. 문화고등학교 교시별 시간 모듈 (KST 고정)
+# 3. 문화고등학교 교시별 시간 모듈 (KST 고정 및 리허설 가상 타이머 지원)
 # ==========================================
 SCHEDULE = [
     (1, datetime.time(8, 40), datetime.time(9, 30)),
@@ -163,15 +163,22 @@ def get_current_period_and_elapsed():
     kst_now = utc_now + datetime.timedelta(hours=9)
     cur_time = kst_now.time()
     
+    # 1. 정규 수업 교시 체크
     for period, start, end in SCHEDULE:
         if start <= cur_time <= end:
             start_dt = datetime.datetime.combine(kst_now.date(), start, tzinfo=kst_now.tzinfo)
             elapsed = int((kst_now - start_dt).total_seconds() // 60)
-            return period, elapsed
+            return f"{period}교시", elapsed
             
-    return "테스트", 15
-
-cur_period, elapsed_min = get_current_period_and_elapsed()
+    # 2. 수업 외 시간(방과 후/테스트): 수동 '수업 시작' 기준 또는 분 단위 순환 테스트
+    if "class_start_time" in st.session_state:
+        # 수업 시작 버튼을 눌렀을 때부터 흐른 시간 계산
+        diff_sec = (kst_now.replace(tzinfo=None) - st.session_state["class_start_time"]).total_seconds()
+        elapsed = int(diff_sec // 60)
+        return "연구수업", elapsed
+    else:
+        # 버튼을 아직 안 눌렀을 때는 1단계(0분)부터 대기
+        return "수업 대기", 0
 
 # ==========================================
 # 4. 사이드바 및 권한 인증 (선언 우선 배치)
@@ -293,17 +300,38 @@ if user_mode == "👨‍🏫 교사용 실시간 관제" and is_teacher_authoriz
         st.caption("질문 버튼을 누르면 해당 조의 전체 대화록이 화면 중앙에 고해상도로 확대됩니다.")
     with h_col2:
         st.write("")
-        col_b1, col_b2 = st.columns(2)
+        col_b1, col_b2, col_b3 = st.columns(3)
         with col_b1:
-            if st.button("🔄 수동 갱신", use_container_width=True):
+            if st.button("🔔 수업 시작", use_container_width=True, help="지금 시각을 0분으로 잡고 47분 타이머를 시작합니다."):
+                utc_now = datetime.datetime.now(datetime.timezone.utc)
+                st.session_state["class_start_time"] = (utc_now + datetime.timedelta(hours=9)).replace(tzinfo=None)
+                st.success("수업 타이머가 시작되었습니다!")
                 st.rerun()
         with col_b2:
-            if st.button("🧹 전체 초기화", use_container_width=True, help="기존 테스트 질문 데이터를 모두 삭제합니다."):
+            if st.button("🔄 수동 갱신", use_container_width=True):
+                st.rerun()
+        with col_b3:
+            if st.button("🧹 전체 초기화", use_container_width=True):
+                # DB 및 세션 초기화 로직
+                # 1. SQLite DB 테이블 비우기
                 conn = sqlite3.connect(DB_FILE, check_same_thread=False)
-                conn.cursor().execute("DELETE FROM logs")
+                c = conn.cursor()
+                c.execute("DELETE FROM logs")
+                c.execute("DELETE FROM sqlite_sequence WHERE name='logs'") # id 번호도 1번으로 리셋
                 conn.commit()
                 conn.close()
-                st.success("데이터가 초기화되었습니다.")
+                
+                # 2. 브라우저 세션 메모리(1~6조 대화 기록) 완전 초기화
+                for t in ["1조", "2조", "3조", "4조", "5조", "6조"]:
+                    key = f"messages_{t}"
+                    if key in st.session_state:
+                        st.session_state[key] = []
+                
+                # 3. Gemini 채팅 세션 객체도 초기화
+                if "chat" in st.session_state:
+                    del st.session_state["chat"]
+                
+                st.success("모든 조의 데이터와 세션 기록이 완전 초기화되었습니다.")
                 st.rerun()
 
     # 대형 모달 팝업 함수
