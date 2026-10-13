@@ -1047,8 +1047,8 @@ with col_chat:
                     user_text_clean = final_q.replace(" ", "")
                     
                     if cur_level == 1 and not step1_approved:
-                        # 학생의 누적 발화 안에 반드시 -1과 1(또는 쁠마1, 마일)이 실제로 존재해야만 승인! (3x^2-3만 백 번 쳐도 절대 안 열림)
-                         check_s1 = all_user_msgs.replace("-1", "")
+                        # 학생의 누적 발화 안에 반드시 -1과 1(또는 쁠마1, 마일)이 실제로 존재해야만 승인!
+                        check_s1 = all_user_msgs.replace("-1", "")
                         has_both_roots = ("-1" in all_user_msgs and "1" in check_s1) or ("쁠마1" in all_user_msgs) or ("+-1" in all_user_msgs) or ("±1" in all_user_msgs) or ("마일" in all_user_msgs)
                         if has_both_roots and not is_troll:
                             update_team_progress(current_label, step1_app=1)
