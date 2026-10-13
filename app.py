@@ -301,12 +301,18 @@ def ask_gemini(system_prompt, history, user_text):
         contents.append(types.Content(role="user" if m["role"] == "user" else "model",
                                       parts=[types.Part.from_text(text=m["content"])]))
     contents.append(types.Content(role="user", parts=[types.Part.from_text(text=user_text)]))
-    cfg = types.GenerateContentConfig(system_instruction=system_prompt, temperature=0.5, max_output_tokens=700)
     last = "unknown"
     for model in MODEL_CHAIN:
+        cfg = types.GenerateContentConfig(
+            system_instruction=system_prompt,
+            temperature=0.5,
+            max_output_tokens=4096,
+            thinking_config=types.ThinkingConfig(thinking_level="low"),
+        )
         for attempt in range(2):
             try:
                 res = client.models.generate_content(model=model, contents=contents, config=cfg)
+
                 if res.text and res.text.strip():
                     return res.text.strip(), model
                 last = "empty"
@@ -493,7 +499,7 @@ if mode is None:
         if st.button("👨‍🏫 교사 관제", use_container_width=True):
             st.session_state["mode"] = "👨‍🏫 교사(관제)"
             st.rerun()
-    st.caption("※ 태블릿을 특정 조로 고정하려면 주소 뒤에 `?team=3조` 처럼 붙여 접속하세요.")
+    st.caption("※ 해당하는 조에 접속하도록 합니다.")
     st.stop()
 
 # ----------------------------------------------------------------------------
