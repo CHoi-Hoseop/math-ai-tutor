@@ -1023,8 +1023,8 @@ with col_chat:
                             )
                         elif cur_level == 2:
                             remind_rule = (
-                                " (철칙: 수평선 y=2나 중근만 말한 상태라면 절대 승인하지 말고, 오른쪽에서 다시 만나는 교점(x>0)의 x좌표가 얼마인지 끝까지 되물어라! "
-                                "오직 학생이 직접 교점 'x=2' 또는 '(2, 2)'를 찾아서 말했을 때만 답변 맨 끝에 [APPROVE_STEP2] 를 출력할 것!)"
+                                " (철칙: 2단계는 반드시 ① 수평선 y=2 확인 ➔ ② x^3-3x=2에서 x=-1이 '중근'임을 확인 ➔ ③ 오른쪽 교점 'x=2' 확인의 3단계를 모두 거쳐야 한다! "
+                                "학생이 아직 '중근(또는 (x+1)^2)'과 교점 'x=2'를 둘 다 말하지 않았다면 절대 승인하지 말고 다음 단계를 질문해라!)"
                             )
                         else:
                             remind_rule = ""
@@ -1055,17 +1055,24 @@ with col_chat:
                             new_approval = True
                             
                     elif cur_level == 2 and not step2_approved:
-                        # 2단계 진입 후 나눈 대화 횟수 계산
-                        user_turn_cnt = sum(1 for m in st.session_state[session_key] if m["role"] == "user")
+                        # 2단계 진입 이후 학생이 친 대화만 따로 모아서 검사!
                         step1_cnt = st.session_state.get(f"step1_msg_cnt_{current_label}", 1)
-                        step2_turn_cnt = max(1, user_turn_cnt - step1_cnt)
+                        user_msgs_list = [m["content"] for m in st.session_state[session_key] if m["role"] == "user"]
+                        step2_user_msgs = " ".join(user_msgs_list[step1_cnt:]).replace(" ", "")
+                        step2_turn_cnt = len(user_msgs_list) - step1_cnt
                         
-                        # 수평선 'y=2'나 제곱 'x^2', 극댓점 '(-1,2)'의 숫자 2를 모두 제거한 뒤에도 진짜 교점 '2'를 말했는지 검사!
-                        cleaned_q = user_text_clean.replace("y=2", "").replace("x^2", "").replace("(-1,2)", "").replace("-2", "").replace("2단계", "")
-                        said_x2 = ("x=2" in user_text_clean) or ("(2,2)" in user_text_clean) or ("2" in cleaned_q and step2_turn_cnt >= 2)
+                        # [관문 1] 중근/접함의 개념이나 (x+1)^2 인수를 언급했는가? (방정식 x^3-3x=2 만 쳐서는 절대 통과 불가!)
+                        has_double_root_concept = any(kw in step2_user_msgs for kw in ["중근", "접하", "접점", "튕기", "겹치", "두번", "(x+1)^2", "제곱"])
                         
-                        # AI가 승인 태그를 줬더라도 학생이 '2' 관련 답을 안 했으면 절대 안 열어줌!
-                        if (said_x2 or ("[APPROVE_STEP2]" in raw_reply and "2" in cleaned_q)) and not is_troll:
+                        # [관문 2] 방정식 'x^3-3x=2', 'y=2', '(x+1)^2' 속의 숫자 2를 싹 지운 뒤에도 진짜 교점 'x=2'를 말했는가?
+                        cleaned_s2 = step2_user_msgs
+                        for ignore_str in ["x^3-3x=2", "x³-3x=2", "3x=2", "=2", "y=2", "(x+1)^2", "(x+1)²", "x^2", "x²", "(-1,2)", "-2", "2단계", "2번"]:
+                            cleaned_s2 = cleaned_s2.replace(ignore_str, "")
+                        
+                        said_x2 = ("x=2" in step2_user_msgs) or ("(2,2)" in step2_user_msgs) or ("2" in cleaned_s2 and step2_turn_cnt >= 2)
+                        
+                        # 반드시 [관문 1: 중근 개념]과 [관문 2: 교점 x=2]를 모두 통과해야만 승인 오픈!
+                        if has_double_root_concept and said_x2 and not is_troll:
                             update_team_progress(current_label, step2_app=1)
                             new_approval = True
                     
