@@ -606,7 +606,7 @@ with col_graph:
 
         ax2.set_title("$f'(x) = 3x^2 - 3$", fontsize=13, color="#c2410c", fontweight="bold")
         ax2.plot(x, dy, color="#ff7f0e", linewidth=2.2, label="$f'(x)$")
-        ax2.axvline(0, color='purple', alpha=0.5, linestyle=':', label="Axis $x=0$")
+        ax2.axvline(0, color='purple', alpha=0.5, linestyle=':', label="$x = 0$")
         ax2.legend(loc='upper center', fontsize=10)
 
     else:
