@@ -1,8 +1,11 @@
-
 # =============================================================================
-#  문화고 2학년 미적분Ⅰ 연구수업 : 소크라테스 AI 튜터 & 교사 관제 (v2 전면 개정판)
+#  문화고 2학년 미적분Ⅰ 연구수업 : 소크라테스 AI 튜터 & 교사 관제 (v2.1)
 #  - 1~6조(조별 태블릿 2대 공유), 참관교사(휴대폰 10명 내외), 교사 관제
 #  - 모든 대화/진행도는 SQLite(WAL)로 공유 → 같은 조의 두 태블릿이 같은 채팅방을 봄
+#  - 화면·활동지·오디오 안내 흐름 일치:
+#      LV1 화면=빈 좌표평면            / 활동지 1단계=f'(x)·증감표(빈칸)·극점 좌표
+#      LV2 화면=곡선+극댓점·극솟점     / 활동지 2단계=극점 옮겨 그리기 → AI와 수평선·교점 찾기 → 작도·자 측정
+#      LV3 화면=수평선·교점·수직점선   / 활동지 3단계=자유 풀이 인수분해 → 최종 보고 → 심화
 # =============================================================================
 import streamlit as st
 import numpy as np
@@ -36,12 +39,14 @@ def get_secret(key, default=None):
     except Exception:
         return os.environ.get(key, default)
 
-TEACHER_PIN = str(get_secret("TEACHER_PIN", "1234"))   # secrets.toml 의 TEACHER_PIN 으로 바꾸세요
+# PIN은 Streamlit Cloud → Settings → Secrets 의 TEACHER_PIN 으로만 설정합니다 (코드에 기본값 없음).
+TEACHER_PIN = get_secret("TEACHER_PIN")
+TEACHER_PIN = str(TEACHER_PIN).strip() if TEACHER_PIN else None
 
 st.set_page_config(page_title="문화고 미적분Ⅰ AI 튜터", page_icon="📐", layout="wide")
 
 # ----------------------------------------------------------------------------
-# 1. 스타일
+# 1. 스타일  (★ 밝은 배경 요소는 글자색을 반드시 명시 → 휴대폰 다크모드에서도 보임)
 # ----------------------------------------------------------------------------
 st.markdown("""
 <style>
@@ -51,14 +56,16 @@ h2, h3 { font-weight: 700 !important; }
 .topbar { display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;
           background:#0f172a; color:#f8fafc; padding:10px 16px; border-radius:10px; margin-bottom:12px; }
 .pill { padding:4px 12px; border-radius:6px; font-size:0.9rem; font-weight:700; }
-.card { background:#fff; border:1.5px solid #cbd5e1; border-radius:10px; padding:14px 16px; margin-bottom:12px; }
+.card { background:#fff; color:#1e293b; border:1.5px solid #cbd5e1; border-radius:10px; padding:14px 16px; margin-bottom:12px; line-height:1.55; }
 .card.lv1 { border-left:6px solid #f97316; background:#fff7ed; }
 .card.lv2 { border-left:6px solid #2563eb; background:#eff6ff; }
 .card.lv3 { border-left:6px solid #16a34a; background:#f0fdf4; }
+.card b { color:#0f172a; }
 .unlock { background:#dcfce7; border:2.5px solid #16a34a; border-radius:10px; padding:12px 16px; margin:8px 0;
           color:#14532d; font-size:1.05rem; font-weight:800; text-align:center; }
 .primer { background:#f8fafc; border:1.5px dashed #94a3b8; border-radius:8px; padding:9px 12px; margin:8px 0; font-size:0.88rem; color:#475569; }
 .primer.open { background:#f0f9ff; border-color:#7dd3fc; color:#0369a1; }
+.gcap { background:#f8fafc; color:#334155; border:1px solid #e2e8f0; border-radius:8px; padding:8px 12px; font-size:0.9rem; margin:-4px 0 10px 0; }
 .badge { padding:2px 8px; border-radius:5px; font-size:0.76rem; font-weight:800; margin-left:4px; display:inline-block; }
 .b-ok { background:#dcfce7; color:#15803d; }  .b-warn { background:#fef3c7; color:#b45309; }
 .b-bad { background:#fee2e2; color:#b91c1c; } .b-time { background:#e0f2fe; color:#0369a1; }
@@ -97,7 +104,6 @@ def db():
         conn.close()
 
 def db_warn(e):
-    # DB 오류를 조용히 삼키지 않고 화면 구석에 알립니다.
     try:
         st.toast(f"⚠️ DB 지연/오류: {str(e)[:60]}", icon="⚠️")
     except Exception:
@@ -238,6 +244,7 @@ init_db()
 
 # ----------------------------------------------------------------------------
 # 3. 그래프 (pyplot 전역 상태 미사용 → 다중 접속 안전, 레벨별 1회만 렌더링)
+#    LV1: 빈 좌표평면 / LV2: 곡선+극점 / LV3: 수평선·교점·수직 점선(1:1:1)
 # ----------------------------------------------------------------------------
 @st.cache_data(show_spinner=False)
 def graph_png(level: int) -> bytes:
@@ -256,7 +263,6 @@ def graph_png(level: int) -> bytes:
         ax1.set_title(r"$y = f(x) = x^3 - 3x$", fontsize=13, color="#1e40af", fontweight="bold")
         ax2.set_title(r"$y = f'(x)$", fontsize=13, color="#475569")
         ax1.plot([0], [0], "ko", ms=5); ax2.plot([0], [0], "ko", ms=5)
-        
     else:
         ax1.set_title(r"$y = f(x) = x^3 - 3x$" + (r"$\quad [1:1:1]$" if level == 3 else ""), fontsize=13,
                       color="#15803d" if level == 3 else "#1e40af", fontweight="bold")
@@ -277,6 +283,13 @@ def graph_png(level: int) -> bytes:
     buf = io.BytesIO()
     fig.savefig(buf, format="png", bbox_inches="tight")
     return buf.getvalue()
+
+# 그래프 아래 안내문 (이미지 밖, 브라우저 텍스트 → 한글 깨짐 없음)
+GRAPH_CAPTION = {
+    1: "🔎 아직 비어 있어요. AI와의 문답을 통과하면 그래프가 열립니다.",
+    2: "✅ 1단계에서 찾은 <b>극댓점 (−1, 2)</b>·<b>극솟점 (1, −2)</b>가 표시됐어요. 증감표와 맞는지 확인하고 <b>활동지 2단계 좌표평면에 옮겨 그리세요.</b> 수평선과 교점은 화면에 없으니 AI와 찾아 직접 작도!",
+    3: "💡 자로 잰 결과와 비교해 보세요. 수직 점선 <b>x = −2, −1, 0, 1, 2</b> 의 간격이 <b>1 : 1 : 1</b> 로 일정합니다.",
+}
 
 # ----------------------------------------------------------------------------
 # 4. Gemini (새 SDK, 실제 호출 실패 시에만 다음 모델로 / 429는 짧게 재시도 / 최후엔 캔 응답)
@@ -312,7 +325,6 @@ def ask_gemini(system_prompt, history, user_text):
         for attempt in range(2):
             try:
                 res = client.models.generate_content(model=model, contents=contents, config=cfg)
-
                 if res.text and res.text.strip():
                     return res.text.strip(), model
                 last = "empty"
@@ -327,7 +339,7 @@ def ask_gemini(system_prompt, history, user_text):
 CANNED = {
     1: "잠시 AI 연결이 느려졌어요. 그동안 모둠에서 생각해 볼 질문이에요: 그래프가 올라가다 내려가기 시작하는 순간, 접선의 기울기는 얼마일까요? 그 기울기를 알려주는 함수의 이름은 무엇일까요? 그 함수를 직접 구해서 다시 보내 주세요!",
     2: "잠시 AI 연결이 느려졌어요. 그동안 생각해 볼 질문이에요: 극댓점 $(-1, 2)$를 지나는 **수평선**은 어떤 식일까요? 그 직선과 곡선 $y=x^3-3x$가 만나는 점을 찾으려면 어떤 방정식을 풀어야 할까요? 식을 세워서 다시 보내 주세요!",
-    3: "잠시 AI 연결이 느려졌어요. 활동지 3단계의 $x^3-3x-2=0$을 조립제법으로 나눠 보세요. $x=-1$을 두 번 넣어도 나누어떨어지는지 확인하고, 마지막 남는 일차식이 무엇인지 적어 다시 보내 주세요!",
+    3: "잠시 AI 연결이 느려졌어요. 활동지 3단계의 $x^3-3x-2=0$ 을 모둠의 방법으로 인수분해해 보세요. 접하는 점에서 근이 가진 특징(2단계 ③)을 떠올리면 어디서부터 나누어야 할지 보일 거예요. 결과를 적어 다시 보내 주세요!",
 }
 
 # ----------------------------------------------------------------------------
@@ -353,6 +365,8 @@ def build_system_prompt(level, stage_min, turns, label):
 너는 문화고등학교 2학년 미적분Ⅰ 연구수업의 소크라테스식 AI 튜터이자 탐구 심사관이다.
 대상 함수: f(x) = x^3 - 3x, f'(x) = 3x^2 - 3. 대화 상대: {label}. 현재 LV{level} 단계, 이 단계 체류 {stage_min}분, 이 단계 학생 발화 {turns}회.
 수식은 반드시 $...$ (LaTeX) 로 써라. 예: $f'(x)=3x^2-3$. 말투는 친근한 반말, 이모지는 한 개 이하.
+학생 화면: LV1에는 빈 좌표평면만, LV2에는 곡선과 극댓점·극솟점만 보이고(수평선·교점은 안 보임), LV3에서 수평선·교점·수직 점선이 열린다.
+학생은 종이 활동지에 1단계(f'(x), 증감표, 극점 좌표) → 2단계(극점 옮겨 그리기, ①수평선 식 ②방정식 ③접할 때 근의 특징 ④교점, 자로 측정) → 3단계(자유 풀이 인수분해, 최종 보고, 심화)를 쓴다.
 
 [장난·비수학 방어] 잡담, 급식, 게임, 욕설, 연애, 의미 없는 글자 반복 등 수학과 무관한 입력에는 짧고 단호하게
 "지금은 수학 탐구 시간이야. 이 대화는 선생님 관제 화면에 기록돼. 활동지 질문으로 돌아오자! [TROLL_DETECTED]" 라고만 답해.
@@ -363,13 +377,13 @@ def build_system_prompt(level, stage_min, turns, label):
 {hint_policy(level, stage_min, turns)}
 
 [LV1 규칙] 극값·도함수를 물으면 f'(x)=0을 풀도록 유도. 학생이 f'(x)=3x²-3 과 그 근 x=-1, 1(또는 ±1)을 '직접' 말했을 때만
-칭찬 후 활동지 1단계 증감표 작성을 안내하고 답변 맨 끝 줄에 정확히 [APPROVE_STEP1] 을 붙여. 미분식만 말한 상태면 근을 되물어.
+칭찬 후 "활동지 1단계 증감표(x값부터 빈칸 모두)와 극댓점·극솟점 좌표를 채우라"고 안내하고 답변 맨 끝 줄에 정확히 [APPROVE_STEP1] 을 붙여. 미분식만 말한 상태면 근을 되물어.
 
 [LV2 규칙] 반드시 ①수평선 y=2 → ②x³-3x=2 (즉 x³-3x-2=0) 에서 x=-1이 '중근'(접한다 ⇒ (x+1)² 인수) → ③오른쪽 교점 x=2 순서로 끌어내.
-학생이 ②중근 개념과 ③x=2 를 모두 말했을 때만 "교점은 (2, 2)" 라고 확인해 주고 활동지 2단계에서 자로 수평 간격을 재라고 안내하며
+학생이 ②중근 개념과 ③x=2 를 모두 말했을 때만 "교점은 (2, 2)" 라고 확인해 주고 "활동지 2단계 좌표평면에 수평선과 교점을 그려 넣고 자로 수평 간격을 재라"고 안내하며
 답변 맨 끝 줄에 정확히 [APPROVE_STEP2] 를 붙여. 둘 중 하나라도 안 나왔으면 승인 태그 없이 다음 단계를 질문해.
 
-[LV3 규칙] 활동지 3단계 x³-3x-2=0 의 조립제법 손증명을 안내(몫 계수는 학생이 말하게). 증명을 끝낸 모둠이 '비율 법칙 한 줄 요약'을
+[LV3 규칙] 활동지 3단계 x³-3x-2=0 의 인수분해(조립제법 등) 손증명을 안내(몫 계수는 학생이 말하게). 증명을 끝낸 모둠이 '비율 법칙 한 줄 요약'을
 보고하면 크게 칭찬하고, 심화로 x축 교점(x=±√3)과 극점(x=±1) 사이의 새로운 비율(1:√3)을 탐구하도록 질문을 던져.
 """
 
@@ -519,7 +533,7 @@ def level_badge(prog):
 
 def timeline_html(elap):
     steps = [("1단계 문제 제기", "0~8분 · 증감표", elap <= 8), ("2단계 AI 기하 탐구", "8~22분 · 교점·자로 측정", 8 < elap <= 22),
-             ("3단계 대수적 정당화", "22~37분 · 조립제법", 22 < elap <= 37), ("4단계 정리·심화", "37~45분 · 공유", elap > 37)]
+             ("3단계 대수적 정당화", "22~37분 · 인수분해 증명", 22 < elap <= 37), ("4단계 정리·심화", "37~45분 · 공유", elap > 37)]
     return '<div class="tl">' + "".join(f'<div class="{"on" if on else ""}"><b>{n}</b><small>{d}</small></div>' for n, d, on in steps) + "</div>"
 
 def render_chat_rows(df):
@@ -541,19 +555,31 @@ def mission_audio(step, fallback):
     else:
         st.info(f"🔊 {fallback}")
 
+# ★ 활동지·오디오 대본과 동일한 흐름 (화면에 보이는 것 / 종이에 쓰는 것 / 다음 단계 조건)
 MISSION_CARD = {
-    1: ('lv1', "🔒 [1단계 미션] 삼차함수 f(x) = x³ − 3x 의 개형 열기",
-        "① 모둠원과 상의해 AI에게 <b>극값이 생기는 위치를 찾는 방법</b>을 질문하세요.<br>② 얻은 단서로 <b>종이 활동지 1단계 증감표</b>를 채우세요.<br>③ AI가 인증하면 초록 버튼이 열립니다."),
-    2: ('lv2', "🔓 [2단계 미션] 극댓점에서 그은 수평선과 새로운 교점 추적",
-        "① 극댓점을 지나는 <b>수평선의 식</b> → ② 곡선과 <b>접할 때 방정식의 근의 특징</b> → ③ 오른쪽에서 <b>다시 만나는 교점</b>을 차례로 밝혀내세요.<br>④ <b>활동지 2단계</b> 그래프에 자를 대고 점 사이 수평 간격을 재서 기록하세요."),
-    3: ('lv3', "🏆 [3단계] 비율 격자 완성 — 대수적으로 증명하기",
-        "① <b>활동지 3단계</b>: x³ − 3x − 2 = 0 을 조립제법으로 인수분해해 손증명을 완성하세요.<br>② <b>최종 보고</b>: 오늘 발견한 비율 법칙을 한 줄로 요약해 AI에게 보고하세요 (선생님 전광판에 게시됩니다).<br>③ <b>심화</b>: 마중물 버튼으로 숨겨진 또 다른 비율에 도전!"),
+    1: ('lv1', "🔒 [1단계 미션] 극값은 어디서 생길까?",
+        "① 화면은 아직 <b>빈 좌표평면</b>이에요. 모둠원과 상의해 AI에게 <b>극값이 생기는 위치를 찾는 방법</b>을 질문하세요.<br>"
+        "② 얻은 단서로 <b>활동지 1단계</b>의 f'(x), <b>증감표(x값부터 빈칸 모두!)</b>, 극댓점·극솟점 좌표를 채우세요.<br>"
+        "③ AI가 인증하면 초록 버튼이 열리고, 버튼을 누르면 그래프가 짠! 하고 나타납니다."),
+    2: ('lv2', "🔓 [2단계 미션] 극댓점에서 그은 수평선은 어디서 다시 만날까?",
+        "① 화면에 열린 그래프의 <b>극댓점·극솟점</b>을 <b>활동지 2단계 좌표평면</b>에 옮겨 찍고, 곡선을 따라 그리세요.<br>"
+        "② AI와 함께 <b>①수평선의 식 → ②방정식 → ③접할 때 근의 특징 → ④다시 만나는 교점</b>을 차례로 밝혀내세요. (수평선·교점은 화면에 없어요!)<br>"
+        "③ 찾은 수평선과 교점을 활동지에 그려 넣고, <b>자로 가로 간격</b>을 재서 기록하세요. 인증되면 초록 버튼이 열립니다."),
+    3: ('lv3', "🏆 [3단계] 자로 잰 것을 식으로 증명하자",
+        "① 화면에 <b>수평선·교점·수직 점선</b>이 열렸어요. 자로 잰 결과와 맞는지 확인하세요.<br>"
+        "② <b>활동지 3단계</b>: x³ − 3x − 2 = 0 을 모둠의 방법으로 <b>완전히 인수분해</b>해 새 교점의 x좌표를 식으로 확인하세요.<br>"
+        "③ <b>최종 보고</b>: 발견한 비율 법칙을 한 문장으로 AI에게 보고하세요(선생님 전광판 게시). 남는 시간엔 <b>심화 퀘스트</b>!"),
 }
 
 # ----------------------------------------------------------------------------
 # 8. 교사 관제
 # ----------------------------------------------------------------------------
 if mode == "👨‍🏫 교사(관제)":
+    if not TEACHER_PIN:
+        st.title("👨‍🏫 교사용 실시간 관제")
+        st.error("⚠️ TEACHER_PIN 이 설정되지 않았습니다. Streamlit Cloud → 앱 메뉴(⋮) → Settings → Secrets 에 "
+                 "TEACHER_PIN = \"원하는비밀번호\" 를 추가하고 Reboot 하세요. (로컬이면 .streamlit/secrets.toml)")
+        st.stop()
     with st.sidebar:
         pin = st.text_input("교사용 PIN", type="password")
     if pin != TEACHER_PIN:
@@ -599,7 +625,6 @@ if mode == "👨‍🏫 교사(관제)":
         all_logs = get_logs()
         now = kst_now()
 
-        # ---- 확대 패널 (팝업 대신 상단 고정 → 자동갱신 중에도 안 닫힘) ----
         z = st.session_state.get("zoom_team")
         if z:
             zl = all_logs[all_logs["team"] == z] if not all_logs.empty else all_logs
@@ -665,7 +690,6 @@ if mode == "👨‍🏫 교사(관제)":
                             else:
                                 st.markdown(f'<div class="q" style="border-left-color:#8b5cf6">{esc(r["question"])} — {esc(r["answer"])}</div>', unsafe_allow_html=True)
 
-        # ---- 최종 보고 모음 (4단계 발표용) ----
         st.markdown("---")
         st.markdown("### 📢 LV3 모둠 최종 보고 (가장 최근 발화)")
         fin_cols = st.columns(3)
@@ -680,7 +704,6 @@ if mode == "👨‍🏫 교사(관제)":
         if k == 0:
             st.caption("아직 3단계에 도달한 모둠이 없습니다.")
 
-        # ---- 참관교사 피드 ----
         st.markdown("---")
         g = all_logs[(all_logs["team"] == GUEST) & (all_logs["kind"] == "chat")] if not all_logs.empty else all_logs
         st.markdown(f"### ☕ 참관 선생님 질문 피드 <span style='font-size:0.95rem;color:#64748b'>(총 {len(g)}건)</span>", unsafe_allow_html=True)
@@ -693,7 +716,6 @@ if mode == "👨‍🏫 교사(관제)":
                     st.markdown(f'<div class="card" style="border-left:5px solid #f97316;background:#fff7ed;"><div style="font-size:0.76rem;color:#9a3412;font-weight:700;">{esc(r["client"])} · {esc(str(r["ts"])[11:19])}</div>'
                                 f'<div style="font-weight:800;margin:3px 0;">Q. {esc(r["question"], 90)}</div><div style="font-size:0.85rem;color:#7c2d12;">AI: {esc(r["answer"], 100)}</div></div>', unsafe_allow_html=True)
 
-        # ---- 수업 후 분석용 다운로드 ----
         st.markdown("---")
         d1, d2 = st.columns(2)
         d1.download_button("⬇️ 전체 대화 로그 CSV", all_logs.to_csv(index=False).encode("utf-8-sig"), f"logs_{kst_now():%Y%m%d_%H%M}.csv", "text/csv", use_container_width=True)
@@ -726,7 +748,6 @@ else:
 level = prog["level"]
 approved = bool(prog["step1_approved"]) if level == 1 else bool(prog["step2_approved"]) if level == 2 else True
 
-# ---- 상단 타이머 바 (10초마다 자체 갱신 + 교사 강제오픈/승인/힌트 변화 감지 → 전체 새로고침) ----
 @st.fragment(run_every="10s")
 def top_bar():
     lab, el, act = class_clock()
@@ -773,18 +794,18 @@ col_g, col_c = st.columns([1.05, 0.95], gap="medium")
 
 # ================= 좌측: 그래프 + 잠금 해제 =================
 with col_g:
-    audio_txt = {1: "AI에게 극값을 찾는 방법을 질문하고 활동지 1단계 증감표를 완성해 그래프를 여세요.",
-                 2: "극댓점에서 오른쪽으로 그은 수평선이 곡선과 다시 만나는 점을 AI와 함께 찾고, 자로 간격을 재 보세요.",
-                 3: "격자가 열렸습니다. 활동지 3단계에서 조립제법으로 완전 증명하세요!"}[level]
+    # mp3(audio/stepN.mp3)가 없을 때 화면에 대신 보이는 요약 안내 — 녹음 대본과 같은 내용
+    audio_txt = {1: "화면은 아직 비어 있어요. AI에게 극값이 생기는 위치를 질문해 f'(x)와 그 식이 0이 되는 x를 찾고, 활동지 1단계 증감표를 x값부터 모두 채운 뒤 극댓점·극솟점 좌표를 적으세요.",
+                 2: "화면에 열린 극댓점·극솟점을 활동지 2단계 좌표평면에 옮겨 그린 뒤, AI와 함께 수평선의 식 → 접할 때 근의 특징 → 다시 만나는 교점을 찾아 작도하고, 자로 가로 간격을 재세요.",
+                 3: "화면의 수평선·교점이 자로 잰 결과와 맞나요? 활동지 3단계에서 x³−3x−2=0 을 모둠의 방법으로 완전히 인수분해해 증명하고, 비율 법칙을 한 문장으로 AI에게 보고하세요."}[level]
     if st.button(f"▶ {level}단계 미션 안내 듣기", use_container_width=True):
         mission_audio(level, audio_txt)
     st.image(graph_png(level), use_container_width=True)
-    if level == 3:
-        st.info("💡 관찰 포인트: $x=-2,-1,0,1,2$ 수직 점선 간격이 **1 : 1 : 1** 로 일정함을 확인하세요!")
+    st.markdown(f'<div class="gcap">{GRAPH_CAPTION[level]}</div>', unsafe_allow_html=True)
 
     def unlock_button(key):
         if level == 1:
-            st.markdown('<div class="unlock">🎉 1단계 AI 인증 완료! 활동지 1단계 증감표를 다 채웠다면 👇</div>', unsafe_allow_html=True)
+            st.markdown('<div class="unlock">🎉 1단계 AI 인증 완료! 활동지 1단계(증감표·극점 좌표)를 다 채웠다면 👇</div>', unsafe_allow_html=True)
             if st.button("🔓 활동지 1단계 완료 ➔ 2단계 그래프 열기", key=key, type="primary", use_container_width=True):
                 if is_guest:
                     st.session_state["guest_level"] = 2; st.session_state["guest_start"] = ts()
@@ -793,7 +814,7 @@ with col_g:
                     save_log(team, client_id, "system", "[학생 버튼]", "활동지 1단계 완료 → LV2 진입", 0, 2)
                 st.session_state["celebrate"] = True; st.rerun()
         elif level == 2:
-            st.markdown('<div class="unlock">🎉 2단계 AI 검증 완료! 자로 간격을 재서 기록했다면 👇</div>', unsafe_allow_html=True)
+            st.markdown('<div class="unlock">🎉 2단계 AI 검증 완료! 활동지에 수평선·교점을 그리고 자로 간격을 재서 기록했다면 👇</div>', unsafe_allow_html=True)
             if st.button("🔓 활동지 2단계 완료 ➔ 3단계 비율 격자 열기", key=key, type="primary", use_container_width=True):
                 if is_guest:
                     st.session_state["guest_level"] = 3; st.session_state["guest_start"] = ts()
@@ -807,7 +828,7 @@ with col_g:
             unlock_button("unlock_left")
         else:
             st.info({1: "💬 AI와의 문답으로 도함수와 극값의 위치를 검증받으면 여기에 초록색 잠금 해제 버튼이 열립니다.",
-                     2: "💬 수평선의 식 ➔ 접할 때 근의 특징 ➔ 교점의 x좌표 순서로 AI의 질문에 답해 승인을 받으세요."}[level])
+                     2: "💬 수평선의 식 ➔ 접할 때 근의 특징 ➔ 교점의 x좌표 순서로 AI의 질문에 답해 승인을 받으세요. (그동안 화면의 극점을 활동지 좌표평면에 옮겨 그려 두세요!)"}[level])
 
 # ================= 우측: 소크라테스 AI 채팅 (6초마다 DB 동기화 → 같은 조 태블릿 2대 공유) =================
 with col_c:
@@ -836,7 +857,6 @@ with col_c:
         if level < 3 and approved and not is_guest:
             unlock_button("unlock_right")
 
-        # ---- 마중물 질문 (단계 체류 3분 후 개방 / 참관교사·LV3는 즉시) ----
         preset = None
         primer_open = is_guest or level == 3 or stage_min >= PRIMER_OPEN_MIN
         if not primer_open:
@@ -848,7 +868,7 @@ with col_c:
                     ("⚖️ 기울기가 0이라는 건?", "접선의 기울기가 0이 되는 x좌표를 찾으면 그래프에서 어떤 점을 알 수 있어?")],
                 2: [("📏 극댓점에서 수평선을 그으면?", "극댓점에서 오른쪽으로 수평선을 그었을 때 그 직선의 방정식은 어떻게 구해?"),
                     ("🔍 다시 만나는 교점은?", "극댓점을 지나는 수평선이 곡선과 오른쪽에서 다시 만나는 교점의 x좌표는 어떻게 구할 수 있어?")],
-                3: [("📝 조립제법 증명 힌트", "활동지 3단계에서 x^3-3x-2=0 을 어떻게 인수분해하면 접점과 교점의 위치가 대수적으로 증명돼?"),
+                3: [("📝 인수분해 증명 힌트", "활동지 3단계에서 x^3-3x-2=0 을 어떻게 인수분해하면 접점과 교점의 위치가 대수적으로 증명돼?"),
                     ("🌟 [심화] 또 다른 비율?", "방금 찾은 비율 말고, 삼차함수가 x축과 만나는 교점과 극점 사이에 성립하는 또 다른 비율 관계도 있어?")],
             }[level]
             pc = st.columns(2)
@@ -890,7 +910,6 @@ with col_c:
 
         save_log(team, client_id, "chat", final_q, clean, int(troll), level)
 
-        # ---- 승인 검문소: 파이썬 정규식 검사(주) OR AI 태그(보조) — 모두 단계 내 최소 발화 수 충족 시에만 ----
         if not is_guest and not approved and not troll:
             msgs = stage_msgs + [final_q]
             enough = len(msgs) >= MIN_TURNS_FOR_APPROVE
