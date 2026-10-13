@@ -50,11 +50,41 @@ st.markdown("""
         background: #f8fafc; border: 1.5px dashed #94a3b8; border-radius: 8px;
         padding: 10px 14px; margin-bottom: 10px;
     }
+
+    /* 초대형 승인 완료 배너 스타일 */
+    .unlock-alert-box {
+        background: #dcfce7;
+        border: 3px solid #16a34a;
+        border-radius: 12px;
+        padding: 16px 20px;
+        margin: 12px 0;
+        color: #14532d;
+        font-size: 1.15rem;
+        font-weight: 800;
+        text-align: center;
+        box-shadow: 0 4px 12px rgba(22, 163, 74, 0.25);
+    }
+
+    /* Primary 버튼(잠금해제 버튼)을 큼직한 초록색 왕버튼으로 강제 변환 */
+    button[kind="primary"] {
+        background-color: #16a34a !important;
+        border-color: #15803d !important;
+        color: white !important;
+        font-size: 1.2rem !important;
+        font-weight: 800 !important;
+        padding: 0.75rem 1.2rem !important;
+        border-radius: 10px !important;
+        box-shadow: 0 4px 10px rgba(22, 163, 74, 0.3) !important;
+    }
+    button[kind="primary"]:hover {
+        background-color: #15803d !important;
+        border-color: #14532d !important;
+    }
 </style>
 """, unsafe_allow_html=True)
 
 # ==========================================
-# 2. 로컬 SQLite 경량 공유 DB 모듈 (단계별 체류시간 & 힌트 상태 추적)
+# 2. 로컬 SQLite 경량 공유 DB 모듈 (구버전 DB 충돌 100% 방지)
 # ==========================================
 DB_FILE = "class_monitor.db"
 
@@ -86,8 +116,9 @@ def init_db():
             hint2_sent INTEGER DEFAULT 0
         )
     """)
-    # 기존 테이블에 신규 컬럼이 없을 경우 자동 추가 (마이그레이션 안전장치)
     for col_def in [
+        ("step1_approved", "INTEGER DEFAULT 0"),
+        ("step2_approved", "INTEGER DEFAULT 0"),
         ("stage_start_time", "TEXT"),
         ("hint1_sent", "INTEGER DEFAULT 0"),
         ("hint2_sent", "INTEGER DEFAULT 0")
@@ -136,12 +167,12 @@ def get_team_progress(team):
             }
         conn.close()
         return {
-            "level": row[0],
-            "step1_approved": row[1],
-            "step2_approved": row[2],
+            "level": int(row[0]) if row[0] is not None else 1,
+            "step1_approved": int(row[1]) if row[1] is not None else 0,
+            "step2_approved": int(row[2]) if row[2] is not None else 0,
             "stage_start_time": row[3] if row[3] else now_str,
-            "hint1_sent": row[4] if row[4] is not None else 0,
-            "hint2_sent": row[5] if row[5] is not None else 0
+            "hint1_sent": int(row[4]) if row[4] is not None else 0,
+            "hint2_sent": int(row[5]) if row[5] is not None else 0
         }
     except Exception:
         return {
@@ -150,23 +181,35 @@ def get_team_progress(team):
         }
 
 def update_team_progress(team, level=None, step1_app=None, step2_app=None, reset_timer=False, hint1=None, hint2=None):
+    cur = get_team_progress(team)
+    lvl = level if level is not None else cur["level"]
+    s1 = step1_app if step1_app is not None else cur["step1_approved"]
+    s2 = step2_app if step2_app is not None else cur["step2_approved"]
+    st_time = get_kst_now().strftime("%Y-%m-%d %H:%M:%S") if reset_timer else cur["stage_start_time"]
+    h1 = hint1 if hint1 is not None else cur["hint1_sent"]
+    h2 = hint2 if hint2 is not None else cur["hint2_sent"]
+
+    # 세션 메모리에도 즉시 동기화 (DB 지연이나 오류 시에도 100% 작동 보장)
+    st.session_state[f"mem_lvl_{team}"] = lvl
+    st.session_state[f"mem_s1_{team}"] = s1
+    st.session_state[f"mem_s2_{team}"] = s2
+
     try:
-        cur = get_team_progress(team)
-        lvl = level if level is not None else cur["level"]
-        s1 = step1_app if step1_app is not None else cur["step1_approved"]
-        s2 = step2_app if step2_app is not None else cur["step2_approved"]
-        st_time = get_kst_now().strftime("%Y-%m-%d %H:%M:%S") if reset_timer else cur["stage_start_time"]
-        h1 = hint1 if hint1 is not None else cur["hint1_sent"]
-        h2 = hint2 if hint2 is not None else cur["hint2_sent"]
-        
         conn = sqlite3.connect(DB_FILE, check_same_thread=False)
         c = conn.cursor()
-        c.execute("""
-            INSERT INTO team_progress (team, level, step1_approved, step2_approved, stage_start_time, hint1_sent, hint2_sent)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-            ON CONFLICT(team) DO UPDATE SET 
-                level=?, step1_approved=?, step2_approved=?, stage_start_time=?, hint1_sent=?, hint2_sent=?
-        """, (team, lvl, s1, s2, st_time, h1, h2, lvl, s1, s2, st_time, h1, h2))
+        c.execute("SELECT 1 FROM team_progress WHERE team = ?", (team,))
+        exists = c.fetchone()
+        if exists:
+            c.execute("""
+                UPDATE team_progress 
+                SET level=?, step1_approved=?, step2_approved=?, stage_start_time=?, hint1_sent=?, hint2_sent=?
+                WHERE team=?
+            """, (lvl, s1, s2, st_time, h1, h2, team))
+        else:
+            c.execute("""
+                INSERT INTO team_progress (team, level, step1_approved, step2_approved, stage_start_time, hint1_sent, hint2_sent)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            """, (team, lvl, s1, s2, st_time, h1, h2))
         conn.commit()
         conn.close()
     except Exception:
@@ -291,7 +334,7 @@ if user_mode == "👨‍🏫 교사용 실시간 관제" and is_teacher_authoriz
                 conn.commit()
                 conn.close()
                 for k in list(st.session_state.keys()):
-                    if k.startswith("messages_") or k.startswith("chat_"):
+                    if k.startswith("messages_") or k.startswith("chat_") or k.startswith("mem_"):
                         del st.session_state[k]
                 st.success("완전 초기화 완료!")
                 st.rerun()
@@ -391,10 +434,10 @@ if user_mode == "👨‍🏫 교사용 실시간 관제" and is_teacher_authoriz
                 time_badge = f'<span class="badge-time">{st_elap}분째 체류</span>'
                 
                 if t_level == 1:
-                    app_txt = " (질문중)" if not t_prog["step1_approved"] else " (활동지확인중)"
+                    app_txt = " (질문중)" if not t_prog["step1_approved"] else " (버튼대기중)"
                     lvl_badge = f'<span style="background:#fee2e2; color:#991b1b; padding:2px 7px; border-radius:4px; font-size:0.75rem; font-weight:700;">🔒 LV1{app_txt}</span>'
                 elif t_level == 2:
-                    app_txt = " (질문중)" if not t_prog["step2_approved"] else " (작도확인중)"
+                    app_txt = " (질문중)" if not t_prog["step2_approved"] else " (버튼대기중)"
                     lvl_badge = f'<span style="background:#fef3c7; color:#92400e; padding:2px 7px; border-radius:4px; font-size:0.75rem; font-weight:700;">🔓 LV2{app_txt}</span>'
                 else:
                     lvl_badge = '<span style="background:#dcfce7; color:#166534; padding:2px 7px; border-radius:4px; font-size:0.75rem; font-weight:700;">🏆 LV3(지필증명중)</span>'
@@ -416,7 +459,6 @@ if user_mode == "👨‍🏫 교사용 실시간 관제" and is_teacher_authoriz
                 </div>
                 """, unsafe_allow_html=True)
 
-                # 👨‍🏫 교사용 원격 잠금해제 마스터키 버튼
                 if t_level < 3:
                     next_lvl = t_level + 1
                     if st.button(f"⚡ {t_name} ➔ LV{next_lvl} 강제 오픈 (교사 직권)", key=f"force_{t_name}", use_container_width=True):
@@ -488,14 +530,13 @@ def check_is_troll(text):
             return True
     return False
 
-# 진행 상태 및 현재 단계 체류 시간(분) 로드
+# DB와 세션 메모리 양쪽에서 가장 높은 진행 상태를 가져옴 (절대 누락 안 됨)
 prog = get_team_progress(current_label)
-cur_level = prog["level"]
-step1_approved = prog["step1_approved"] == 1
-step2_approved = prog["step2_approved"] == 1
+cur_level = max(prog["level"], st.session_state.get(f"mem_lvl_{current_label}", 1))
+step1_approved = (prog["step1_approved"] == 1) or (st.session_state.get(f"mem_s1_{current_label}", 0) == 1)
+step2_approved = (prog["step2_approved"] == 1) or (st.session_state.get(f"mem_s2_{current_label}", 0) == 1)
 stage_elapsed = get_stage_elapsed_min(current_label)
 
-# 학생 화면에서도 시간 경과에 따른 마중물/자동 힌트가 저절로 열리도록 15초마다 백그라운드 시간 동기화
 @st.fragment(run_every="15s")
 def sync_stage_timer():
     pass
@@ -524,9 +565,8 @@ if is_guest_mode:
                 """, unsafe_allow_html=True)
 else:
     st.title(f"🤖 [{user_mode}] 삼차함수 그래프의 비율 탐구")
-    st.markdown("모둠원과 스스로 질문을 만들어 AI에게 던지고, **종이 활동지를 완성한 후 잠금을 해제**하세요.")
+    st.markdown("모둠원과 스스로 질문을 만들어 AI에게 던지고, **종이 활동지를 완성한 후 초록색 왕버튼을 눌러 잠금을 해제**하세요.")
 
-# 오디오 가이드 함수
 def play_mission_sound(step_num, fallback_text):
     mp3_path = f"audio/step{step_num}.mp3"
     if os.path.exists(mp3_path):
@@ -534,7 +574,6 @@ def play_mission_sound(step_num, fallback_text):
     else:
         st.info(f"🔊 [안내 음성] {fallback_text}")
 
-# ── [음성 안내: 현재 레벨에 맞는 멘트만 단독 노출] ──
 if not is_guest_mode:
     if cur_level == 1:
         if st.button("▶ 1단계: 미션 듣기 (클릭하여 청취)", use_container_width=True):
@@ -551,7 +590,6 @@ st.markdown("---")
 API_KEY = st.secrets["GEMINI_API_KEY"]
 genai.configure(api_key=API_KEY)
 
-# 세션 대화 복구
 session_key = f"messages_{current_label}"
 if session_key not in st.session_state:
     df_prev = get_logs()
@@ -562,7 +600,6 @@ if session_key not in st.session_state:
         recovered_msgs.append({"role": "assistant", "content": r["answer"]})
     st.session_state[session_key] = recovered_msgs
 
-# ★ [시간 경과에 따른 AI 튜터의 '선제적 힌트 톡' 자동 발송 시스템]
 if cur_level == 1 and not step1_approved and stage_elapsed >= 5 and prog["hint1_sent"] == 0 and not is_guest_mode:
     proactive_msg1 = (
         "🤖 **[AI 튜터의 선제 힌트 도착!]**\n\n"
@@ -586,7 +623,6 @@ if cur_level == 2 and not step2_approved and stage_elapsed >= 6 and prog["hint2_
     save_log(current_label, "[⏱️ 6분 경과: AI 선제 힌트 발송]", proactive_msg2, 0)
     update_team_progress(current_label, hint2=1)
 
-# 시스템 프롬프트 (체류 시간에 따라 힌트 강도를 유연하게 조절하도록 지시)
 system_instruction = f"""
 너는 문화고등학교 2학년 미적분Ⅰ 연구수업의 소크라테스식 AI 튜터이자 탐구 심사관이야.
 대상 함수: f(x) = x^3 - 3x, f'(x) = 3x^2 - 3.
@@ -623,7 +659,6 @@ system_instruction = f"""
 
 model = genai.GenerativeModel(model_name="gemini-3.8-flash", system_instruction=system_instruction)
 
-# 레벨 변경 감지 시 AI 세션 최신 프롬프트로 동기화
 chat_level_key = f"chat_lvl_{current_label}"
 if f"chat_{current_label}" not in st.session_state or st.session_state.get(chat_level_key) != cur_level:
     gemini_history = []
@@ -633,13 +668,12 @@ if f"chat_{current_label}" not in st.session_state or st.session_state.get(chat_
     st.session_state[f"chat_{current_label}"] = model.start_chat(history=gemini_history)
     st.session_state[chat_level_key] = cur_level
 
-col_graph, col_chat = st.columns([1.18, 0.82], gap="medium")
+col_graph, col_chat = st.columns([1.15, 0.85], gap="medium")
 
 # ================= 좌측: 탐구 안내 및 단계별 그래프 영역 =================
 with col_graph:
     st.subheader("📈 탐구용 그래프")
     
-    # ── [레벨 1 안내 및 활동지 완료 버튼] ──
     if cur_level == 1:
         st.markdown("""
         <div class="mission-card" style="border-left:5px solid #f97316; background:#fff7ed;">
@@ -652,15 +686,14 @@ with col_graph:
         """, unsafe_allow_html=True)
         
         if step1_approved or is_guest_mode:
-            st.success("✅ AI 승인 완료! 종이 활동지 1단계를 다 채웠다면 아래 버튼을 눌러 그래프를 여세요.")
-            if st.button("🔓 [활동지 1단계 작성 완료] ➔ 2단계 그래프 열기", use_container_width=True):
-                update_team_progress(current_label, level=2, reset_timer=True)
+            st.markdown('<div class="unlock-alert-box">🎉 1단계 AI 탐구 인증 완료! 종이 활동지를 채웠다면 아래 초록색 왕버튼을 누르세요! 👇</div>', unsafe_allow_html=True)
+            if st.button("🔓 [활동지 1단계 작성 완료] ➔ 2단계 그래프 열기 (클릭!)", key="unlock_btn_left_1", type="primary", use_container_width=True):
+                update_team_progress(current_label, level=2, step1_app=1, reset_timer=True)
                 st.balloons()
                 st.rerun()
         else:
-            st.info("💬 AI와의 문답을 통해 도함수 계산($x=-1, 1$)을 검증받으면 여기에 해제 버튼이 열립니다.")
+            st.info("💬 AI와의 문답을 통해 도함수 계산($x=-1, 1$)을 검증받으면 여기에 초록색 잠금 해제 버튼이 열립니다.")
 
-    # ── [레벨 2 안내 및 활동지 완료 버튼] ──
     elif cur_level == 2:
         st.markdown("""
         <div class="mission-card" style="border-left:5px solid #2563eb; background:#eff6ff;">
@@ -673,15 +706,14 @@ with col_graph:
         """, unsafe_allow_html=True)
         
         if step2_approved or is_guest_mode:
-            st.success("✅ AI 심층 검증 완료! 활동지에 자를 대고 간격을 확인했다면 황금비율 격자를 여세요.")
-            if st.button("🔓 [활동지 2단계 작도 완료] ➔ 1:1:1 황금비율 격자 열기", use_container_width=True):
-                update_team_progress(current_label, level=3, reset_timer=True)
+            st.markdown('<div class="unlock-alert-box">🎉 2단계 AI 심층 검증 완료! 자로 간격을 확인했다면 아래 초록색 왕버튼을 누르세요! 👇</div>', unsafe_allow_html=True)
+            if st.button("🔓 [활동지 2단계 작도 완료] ➔ 1:1:1 황금비율 격자 열기 (클릭!)", key="unlock_btn_left_2", type="primary", use_container_width=True):
+                update_team_progress(current_label, level=3, step2_app=1, reset_timer=True)
                 st.balloons()
                 st.rerun()
         else:
             st.info("💬 AI의 단계별 질문(수평선 식 ➔ 중근 ➔ 교점 x좌표)에 답하여 승인을 획득하세요.")
 
-    # ── [레벨 3 지필 증명 안내] ──
     else:
         st.markdown("""
         <div class="mission-card" style="border-left:5px solid #16a34a; background:#f0fdf4;">
@@ -694,7 +726,6 @@ with col_graph:
         </div>
         """, unsafe_allow_html=True)
 
-    # Matplotlib 순수 수식 렌더링 (한글 깨짐 원천 차단)
     fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(6.2, 7.3))
     plt.subplots_adjust(hspace=0.28)
     xticks = np.arange(-2, 3, 1)
@@ -760,15 +791,28 @@ with col_graph:
 with col_chat:
     st.subheader(f"💬 소크라테스 AI ({current_label} - LV.{cur_level})")
     
-    chat_box = st.container(height=430)
+    chat_box = st.container(height=420)
     with chat_box:
         for m in st.session_state[session_key]:
             with st.chat_message(m["role"]):
                 st.markdown(m["content"])
-                
-    # ★ [시간차 마중물(질문 스타터) 오픈 시스템 & 마중물 설명 가이드]
+
+    # ★ [핵심 보완]: 채팅창 바로 아래(학생 눈앞)에도 초대형 초록색 잠금해제 왕버튼 배치!
+    if cur_level == 1 and (step1_approved or is_guest_mode):
+        st.markdown('<div class="unlock-alert-box">✅ 1단계 탐구 통과! 종이 활동지 1단계를 다 적었으면 아래 초록색 버튼을 누르세요! 👇</div>', unsafe_allow_html=True)
+        if st.button("🔓 [활동지 1단계 작성 완료] ➔ 2단계 그래프 열기!", key="unlock_btn_right_1", type="primary", use_container_width=True):
+            update_team_progress(current_label, level=2, step1_app=1, reset_timer=True)
+            st.balloons()
+            st.rerun()
+
+    elif cur_level == 2 and (step2_approved or is_guest_mode):
+        st.markdown('<div class="unlock-alert-box">✅ 2단계 탐구 통과! 종이 활동지 2단계에 자로 간격을 쟀으면 아래 초록색 버튼을 누르세요! 👇</div>', unsafe_allow_html=True)
+        if st.button("🔓 [활동지 2단계 작도 완료] ➔ 1:1:1 황금비율 격자 열기!", key="unlock_btn_right_2", type="primary", use_container_width=True):
+            update_team_progress(current_label, level=3, step2_app=1, reset_timer=True)
+            st.balloons()
+            st.rerun()
+
     preset_q = None
-    # 단계 시작 후 3분이 지났거나, 3단계(심화)이거나, 참관교사 모드일 때만 마중물 노출!
     show_primer = (stage_elapsed >= 3) or (cur_level == 3) or is_guest_mode
     
     if not show_primer:
@@ -826,14 +870,13 @@ with col_chat:
             with st.chat_message("assistant"):
                 with st.spinner("AI가 모둠의 질문을 분석 중입니다..."):
                     try:
-                        # 매 질문마다 현재 단계의 승인 태그 규칙을 강제로 리마인드하여 전송
                         remind_rule = (
                             " (주의: 학생이 도함수 근 -1, 1이나 극값을 언급했으면 답변 맨 끝에 반드시 [APPROVE_STEP1] 을 출력할 것!)"
                             if cur_level == 1 else
                             " (주의: 학생이 교점 2 또는 x=2를 언급했으면 답변 맨 끝에 반드시 [APPROVE_STEP2] 를 출력할 것!)"
                         )
                         res = st.session_state[f"chat_{current_label}"].send_message(
-                            f"[현재 LV{cur_level} 단계 / {current_label} 발화]: {final_q}{remind_rule}"
+                            f"[현재 LV{cur_level} 단계 ({stage_elapsed}분 경과) / {current_label} 발화]: {final_q}{remind_rule}"
                         )
                         raw_reply = res.text
                     except Exception as e:
@@ -845,14 +888,12 @@ with col_chat:
                     user_turn_cnt = sum(1 for m in st.session_state[session_key] if m["role"] == "user")
                     
                     if cur_level == 1 and not step1_approved:
-                        # 1) 태그가 있거나, 2) -1과 1이 언급되었거나, 3) 2회 이상 문답 시 무조건 승인!
                         has_step1_kw = ("-1" in combined_text and "1" in combined_text) or ("증감표" in raw_reply) or ("활동지" in raw_reply)
                         if ("[APPROVE_STEP1]" in raw_reply) or has_step1_kw or (user_turn_cnt >= 2 and not is_troll):
                             update_team_progress(current_label, step1_app=1)
                             new_approval = True
                             
                     elif cur_level == 2 and not step2_approved:
-                        # 1) 태그가 있거나, 2) 2턴 이상에서 x=2 관련 키워드가 나왔거나, 3) 3회 이상 문답 시 승인!
                         has_step2_kw = ("x=2" in combined_text) or ("(2,2)" in combined_text) or ("자로" in raw_reply) or ("2" in final_q and user_turn_cnt >= 2)
                         if ("[APPROVE_STEP2]" in raw_reply) or has_step2_kw or (user_turn_cnt >= 4 and not is_troll):
                             update_team_progress(current_label, step2_app=1)
@@ -864,6 +905,4 @@ with col_chat:
                     save_log(current_label, final_q, bot_reply, is_troll)
                     
                     if new_approval:
-                        st.toast("🎉 탐구 인증 완료! 왼쪽 화면의 [활동지 작성 완료] 초록색 버튼을 눌러 그래프를 여세요!", icon="✅")
-                        time.sleep(0.8)
                         st.rerun()
