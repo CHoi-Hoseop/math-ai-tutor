@@ -751,8 +751,8 @@ if cur_level == 2 and not step2_approved and stage_elapsed >= 6 and prog["hint2_
     proactive_msg2 = (
         "🤖 **[AI 튜터의 선제 힌트 도착!]**\n\n"
         "2단계 교점 추적이 만만치 않죠? 핵심 단서를 드릴게요!\n"
-        "극댓점 $(-1, 2)$ 에서 오른쪽으로 그은 수평선과 곡선 $y = x^3 - 3x$ 가 만나는 점을 구하려면 두 식을 같다고 놓아야 해요.\n\n"
-        "👉 $x = -1$ 에서는 접하니까 중근 $(x+1)^2$ 을 인수로 가집니다. 그렇다면 오른쪽에서 다시 만나는 **양수 교점의 $x$좌표**는 얼마일까요? 채팅창에 답해 보세요!"
+        "극댓점 $(-1, 2)$ 에서 오른쪽으로 그은 수평선과 곡선 $y = x^3 - 3x$ 가 만나는 점을 구하려면 방정식 $x^3 - 3x - 2 = 0$ 을 세워야 해요.\n\n"
+        "👉 $x = -1$ 에서 그래프가 접한다는 성질을 이용해 인수분해하면, 오른쪽에서 다시 만나는 **양수 교점의 $x$좌표**는 얼마일까요? 채팅창에 답해 보세요!"
     )
     st.session_state[session_key].append({"role": "assistant", "content": proactive_msg2})
     save_log(current_label, "[⏱️ 6분 경과: AI 선제 힌트 발송]", proactive_msg2, 0)
@@ -821,7 +821,7 @@ with col_graph:
     if cur_level == 1:
         st.markdown("""
         <div class="mission-card" style="border-left:5px solid #f97316; background:#fff7ed;">
-            <b style="color:#9a3412; font-size:1.05rem;">🔒 [1단계 미션] 삼차함수 $f(x)=x^3-3x$ 개형 열기</b><br>
+            <b style="color:#9a3412; font-size:1.05rem;">🔒 [1단계 미션] 삼차함수 f(x) = x³ - 3x 개형 열기</b><br>
             <span style="font-size:0.9rem; color:#431407;">
                 1. 모둠원들과 상의하여 우측 AI에게 <b>도함수와 극값이 생기는 위치</b>를 질문하세요.<br>
                 2. 단서를 얻어 <b>책상 위 [종이 활동지 1단계 증감표]</b>를 연필로 채우세요.
@@ -844,7 +844,7 @@ with col_graph:
         <div class="mission-card" style="border-left:5px solid #2563eb; background:#eff6ff;">
             <b style="color:#1e40af; font-size:1.05rem;">🔓 [2단계 미션] 극댓점에서의 수평선과 새로운 교점 추적</b><br>
             <span style="font-size:0.9rem; color:#1e293b;">
-                1. AI와 대화하며 극댓점을 지나는 수평선의 방정식, 접점(중근)의 의미, 그리고 오른쪽에서 다시 만나는 교점의 좌표를 차례대로 밝혀내세요.<br>
+                1. AI와 대화하며 극댓점을 지나는 수평선의 방정식, 곡선과 접할 때 방정식의 근이 갖는 특징, 그리고 오른쪽에서 다시 만나는 교점의 좌표를 차례대로 밝혀내세요.<br>
                 2. <b>[종이 활동지 2단계]</b> 그래프에 직접 자를 대고 점들 사이의 수평 간격을 측정해 기록하세요.
             </span>
         </div>
@@ -857,16 +857,16 @@ with col_graph:
                 st.balloons()
                 st.rerun()
         else:
-            st.info("💬 AI의 단계별 질문(수평선 식 ➔ 중근의 의미 ➔ 교점의 x좌표)에 답하여 승인을 획득하세요.")
+            st.info("💬 AI의 단계별 질문(수평선 식 ➔ 접할 때 근의 특징 ➔ 교점의 x좌표)에 답하여 승인을 획득하세요.")
 
     else:
         st.markdown("""
         <div class="mission-card" style="border-left:5px solid #16a34a; background:#f0fdf4;">
             <b style="color:#166534; font-size:1.05rem;">🏆 [3단계 완성] 삼차함수 1:1:1 비율 격자 완성!</b><br>
             <span style="font-size:0.92rem; color:#14532d;">
-                1. ✍️ <b>[종이 활동지 뒷면 3단계]</b>에서 방정식 $x^3 - 3x - 2 = 0$ 을 조립제법으로 인수분해하여 손증명을 완성하세요.<br>
+                1. ✍️ <b>[종이 활동지 뒷면 3단계]</b>에서 방정식 <b>x³ - 3x - 2 = 0</b> 을 조립제법으로 인수분해하여 손증명을 완성하세요.<br>
                 2. 📢 <b>[최종 보고]:</b> 증명을 마친 모둠은 <b>오늘 발견한 삼차함수 비율 법칙을 한 줄로 요약하여 우측 AI에게 최종 보고</b>하세요! (선생님 전광판에 실시간 게시됩니다)<br>
-                3. 🌟 <b>[심화 퀘스트]:</b> 우측 마중물 버튼을 눌러 또 다른 숨겨진 비율($1:\sqrt{3}$)에도 도전해 보세요!
+                3. 🌟 <b>[심화 퀘스트]:</b> 우측 마중물 버튼을 눌러 삼차함수에 숨겨진 <b>또 다른 새로운 비율</b>에도 도전해 보세요!
             </span>
         </div>
         """, unsafe_allow_html=True)
@@ -997,7 +997,7 @@ with col_chat:
         else:
             with qc1:
                 if st.button("📝 조립제법 인수분해 증명 힌트!", use_container_width=True):
-                    preset_q = "활동지 3단계에서 삼차방정식을 어떻게 인수분해하면 중근과 교점의 위치가 대수적으로 증명돼?"
+                    preset_q = "활동지 3단계에서 삼차방정식을 어떻게 인수분해하면 접점과 교점의 위치가 대수적으로 증명돼?"
             with qc2:
                 if st.button("🌟 [심화] 또 다른 비율 관계도 있어?", use_container_width=True):
                     preset_q = "방금 찾은 비율 말고, 삼차함수가 x축과 만나는 교점과 극점 사이에 성립하는 또 다른 비율 관계도 알려줘!"
