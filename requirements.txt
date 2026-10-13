@@ -1,6 +1,5 @@
-streamlit
-google-generativeai
+streamlit>=1.40
+google-genai>=1.0
+pandas
 numpy
 matplotlib
-pandas
-gTTS
