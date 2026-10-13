@@ -192,7 +192,7 @@ with st.sidebar:
         
     st.markdown("---")
     if cur_period not in ["테스트", "수업 대기"]:
-        st.metric(label=f"{cur_period} 진행 현황", value=f"{elapsed_min}분 경과", delta=f"{max(0, 47 - elapsed_min)}분 남음")
+        st.metric(label=f"{cur_period} 진행 현황", value=f"{elapsed_min}분 경과", delta=f"{max(0, 45 - elapsed_min)}분 남음")
     else:
         st.caption("수업 외 시간 (수업 대기 모드)")
 
@@ -208,7 +208,7 @@ if user_mode == "👨‍🏫 교사용 실시간 관제" and is_teacher_authoriz
         st.write("")
         col_b1, col_b2, col_b3 = st.columns(3)
         with col_b1:
-            if st.button("🔔 수업시작", use_container_width=True, help="지금 시각을 0분으로 잡고 47분 타이머를 가동합니다."):
+            if st.button("🔔 수업시작", use_container_width=True, help="지금 시각을 0분으로 잡고 45분 타이머를 가동합니다."):
                 utc_now = datetime.datetime.now(datetime.timezone.utc)
                 st.session_state["class_start_time"] = (utc_now + datetime.timedelta(hours=9)).replace(tzinfo=None)
                 st.success("타이머 시작!")
@@ -283,29 +283,29 @@ if user_mode == "👨‍🏫 교사용 실시간 관제" and is_teacher_authoriz
         </div>
         """, unsafe_allow_html=True)
 
-        # 2. 4단계 타임라인 진행 바
-        s1_cls = "active" if elap <= 10 else ""
-        s2_cls = "active" if 10 < elap <= 25 else ""
-        s3_cls = "active" if 25 < elap <= 40 else ""
-        s4_cls = "active" if elap > 40 else ""
+        # 4단계 타임라인 프로그레스 게이지 (45분 기준)
+        s1_cls = "active" if elap <= 8 else ""
+        s2_cls = "active" if 8 < elap <= 22 else ""
+        s3_cls = "active" if 22 < elap <= 37 else ""
+        s4_cls = "active" if elap > 37 else ""
         
         st.markdown(f"""
         <div class="timeline-wrap">
             <div class="tl-step {s1_cls}">
                 <b>1단계. 문제 제기</b>
-                <span class="tl-step-time">0~10분 (도함수 극점 해제)</span>
+                <span class="tl-step-time">0~8분 (도함수 극점 해제)</span>
             </div>
             <div class="tl-step {s2_cls}">
                 <b>2단계. AI 기하 탐구</b>
-                <span class="tl-step-time">10~25분 (수평교점 & 1:1:1)</span>
+                <span class="tl-step-time">8~22분 (교점 탐색 & 1:1:1)</span>
             </div>
             <div class="tl-step {s3_cls}">
                 <b>3단계. 대수적 정당화</b>
-                <span class="tl-step-time">25~40분 (2:1 조립제법 증명)</span>
+                <span class="tl-step-time">22~37분 (2:1 조립제법 증명)</span>
             </div>
             <div class="tl-step {s4_cls}">
                 <b>4단계. 정리 및 심화</b>
-                <span class="tl-step-time">40~47분 (1:√3 확장)</span>
+                <span class="tl-step-time">37~45분 (모둠 발표 & 정리)</span>
             </div>
         </div>
         """, unsafe_allow_html=True)
@@ -530,8 +530,8 @@ with col_graph:
                 else:
                     st.error("좌표를 다시 확인하세요. (힌트: 도함수 $3x^2 - 3 = 0$)")
         
-        # 8분 경과 시 자동 힌트 제공
-        if elapsed_min >= 8 and cur_period != "수업 대기":
+        # 6분 경과 시 자동 힌트 제공
+        if elapsed_min >= 6 and cur_period != "수업 대기":
             st.info("💡 **교사 힌트 도착:** $f'(x) = 3(x+1)(x-1) = 0$ 을 만족하는 $x$를 찾아보세요!")
 
     # ── [레벨 2 미션 박스: 교점 입력] ──
@@ -591,8 +591,8 @@ with col_graph:
 
     if cur_level == 1:
         # [LV 1] 빈 좌표평면: 수식만 깔끔하게 표시
-        ax1.set_title("$f(x) = x^3 - 3x$ [Locked]", fontsize=13, color="#2563eb", fontweight="bold")
-        ax2.set_title("$f'(x) = 3x^2 - 3$ [Locked]", fontsize=13, color="#64748b")
+        ax1.set_title("$f(x) = x^3 - 3x$ [잠김]", fontsize=13, color="#2563eb", fontweight="bold")
+        ax2.set_title("$f'(x) = 3x^2 - 3$ [잠김]", fontsize=13, color="#64748b")
         ax1.plot([0], [0], marker='o', markersize=6, color='black')
         ax2.plot([0], [0], marker='o', markersize=6, color='black')
 
