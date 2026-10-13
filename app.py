@@ -566,7 +566,7 @@ with col_graph:
         </div>
         """, unsafe_allow_html=True)
 
-    # ── Matplotlib 단계별 렌더링 (한글 깨짐 원천 방지: 수식 및 영문 표기) ──
+    # ── Matplotlib 단계별 렌더링 (한글 100% 배제, 순수 수식 렌더링) ──
     fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(6.2, 7.3))
     plt.subplots_adjust(hspace=0.28)
     xticks = np.arange(-2, 3, 1)
@@ -590,38 +590,38 @@ with col_graph:
     dy = 3*x**2 - 3
 
     if cur_level == 1:
-        # [LV 1] 빈 좌표평면: 수식만 깔끔하게 표시
-        ax1.set_title("$f(x) = x^3 - 3x$ [잠김]", fontsize=13, color="#2563eb", fontweight="bold")
-        ax2.set_title("$f'(x) = 3x^2 - 3$ [잠김]", fontsize=13, color="#64748b")
+        # [LV 1] 빈 좌표평면: 수식으로만 깔끔하게 표시
+        ax1.set_title(r"$f(x) = x^3 - 3x$", fontsize=13, color="#1e40af", fontweight="bold")
+        ax2.set_title(r"$f'(x) = 3x^2 - 3$", fontsize=13, color="#475569")
         ax1.plot([0], [0], marker='o', markersize=6, color='black')
         ax2.plot([0], [0], marker='o', markersize=6, color='black')
 
     elif cur_level == 2:
-        # [LV 2] 곡선 + 도함수 + 극점 (수식 라벨)
-        ax1.set_title("$f(x) = x^3 - 3x$", fontsize=13, color="#1e3a8a", fontweight="bold")
-        ax1.plot(x, y, color="#1f77b4", linewidth=2.5, label="$f(x)$")
-        ax1.plot([-1], [2], marker='o', markersize=8, color='red', label="Max $(-1, 2)$")
-        ax1.plot([1], [-2], marker='o', markersize=8, color='blue', label="Min $(1, -2)$")
+        # [LV 2] 개형 해제: 수식 라벨
+        ax1.set_title(r"$f(x) = x^3 - 3x$", fontsize=13, color="#1e40af", fontweight="bold")
+        ax1.plot(x, y, color="#1f77b4", linewidth=2.5, label=r"$f(x)$")
+        ax1.plot([-1], [2], marker='o', markersize=8, color='red', label=r"$(-1, 2)$")
+        ax1.plot([1], [-2], marker='o', markersize=8, color='blue', label=r"$(1, -2)$")
         ax1.legend(loc='upper left', fontsize=10)
 
-        ax2.set_title("$f'(x) = 3x^2 - 3$", fontsize=13, color="#c2410c", fontweight="bold")
-        ax2.plot(x, dy, color="#ff7f0e", linewidth=2.2, label="$f'(x)$")
-        ax2.axvline(0, color='purple', alpha=0.5, linestyle=':', label="$x = 0$")
+        ax2.set_title(r"$f'(x) = 3x^2 - 3$", fontsize=13, color="#c2410c", fontweight="bold")
+        ax2.plot(x, dy, color="#ff7f0e", linewidth=2.2, label=r"$f'(x)$")
+        ax2.axvline(0, color='purple', alpha=0.5, linestyle=':', label=r"$x = 0$")
         ax2.legend(loc='upper center', fontsize=10)
 
     else:
-        # [LV 3] 완성형: 접선 및 격자 풀세트
-        ax1.set_title("$f(x) = x^3 - 3x$ [Ratio 1:1:1 Unlocked]", fontsize=13, color="#16a34a", fontweight="bold")
-        ax1.plot(x, y, color="#1f77b4", linewidth=2.5, label="$f(x)$")
-        ax1.axhline(2, color='red', alpha=0.5, linestyle=':', label="$y = 2$")
-        ax1.axhline(-2, color='blue', alpha=0.5, linestyle=':', label="$y = -2$")
+        # [LV 3] 완전 해제: 1:1:1 비율 격자 완성
+        ax1.set_title(r"$f(x) = x^3 - 3x$ (1:1:1 Ratio)", fontsize=13, color="#15803d", fontweight="bold")
+        ax1.plot(x, y, color="#1f77b4", linewidth=2.5, label=r"$f(x)$")
+        ax1.axhline(2, color='red', alpha=0.5, linestyle=':', label=r"$y = 2$")
+        ax1.axhline(-2, color='blue', alpha=0.5, linestyle=':', label=r"$y = -2$")
         ax1.plot([-1, 2], [2, 2], marker='o', markersize=7, color='red')
         ax1.plot([-2, 1], [-2, -2], marker='o', markersize=7, color='blue')
         ax1.legend(loc='upper left', fontsize=10)
 
-        ax2.set_title("$f'(x) = 3x^2 - 3$", fontsize=13, color="#c2410c", fontweight="bold")
-        ax2.plot(x, dy, color="#ff7f0e", linewidth=2.2, label="$f'(x)$")
-        ax2.axvline(0, color='purple', alpha=0.6, linestyle=':', label="Axis $x=0$")
+        ax2.set_title(r"$f'(x) = 3x^2 - 3$", fontsize=13, color="#c2410c", fontweight="bold")
+        ax2.plot(x, dy, color="#ff7f0e", linewidth=2.2, label=r"$f'(x)$")
+        ax2.axvline(0, color='purple', alpha=0.6, linestyle=':', label=r"$x = 0$")
         ax2.legend(loc='upper center', fontsize=10)
 
         # 1:1:1 황금비율 수직선
