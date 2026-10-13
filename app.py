@@ -218,6 +218,16 @@ def get_team_progress(team):
         }
 
 def update_team_progress(team, level=None, step1_app=None, step2_app=None, reset_timer=False, hint1=None, hint2=None):
+    # 참관교사는 공용 DB가 아닌 각자 스마트폰 메모리(세션)에만 개별 저장하여 화면 섞임 방지!
+    if team == "참관교사":
+        if level is not None:
+            st.session_state["mem_lvl_참관교사"] = level
+        if step1_app is not None:
+            st.session_state["mem_s1_참관교사"] = step1_app
+        if step2_app is not None:
+            st.session_state["mem_s2_참관교사"] = step2_app
+        return
+
     cur = get_team_progress(team)
     lvl = level if level is not None else cur["level"]
     s1 = step1_app if step1_app is not None else cur["step1_approved"]
@@ -634,10 +644,13 @@ step2_approved = (prog["step2_approved"] == 1) or (st.session_state.get(f"mem_s2
 stage_elapsed = get_stage_elapsed_min(current_label)
 remain_class_min = max(0, 45 - elapsed_min)
 
-# 15초마다 백그라운드 시간 체크 (마중물 오픈 및 선제 힌트 톡 자동 갱신)
-@st.fragment(run_every="15s")
+# 15초마다 백그라운드 시간 체크 (교사 강제 오픈 및 마중물/선제 힌트 실시간 자동 반영)
+@st.fragment(run_every="10s")
 def sync_stage_timer():
-    pass
+    if not is_guest_mode:
+        latest_p = get_team_progress(current_label)
+        if (latest_p["level"] != cur_level) or (latest_p["step1_approved"] != int(step1_approved)) or (latest_p["step2_approved"] != int(step2_approved)):
+            st.rerun()
 sync_stage_timer()
 
 # ★ [핵심 추가]: 학생(1~6조) 및 참관교사 화면 최상단에도 실시간 수업 경과 시간 & 단계 체류 시간 표시 바 탑재!
@@ -710,13 +723,18 @@ genai.configure(api_key=API_KEY)
 
 session_key = f"messages_{current_label}"
 if session_key not in st.session_state:
-    df_prev = get_logs()
-    team_prev = df_prev[df_prev["team"] == current_label] if not df_prev.empty else pd.DataFrame()
-    recovered_msgs = []
-    for _, r in team_prev.iterrows():
-        recovered_msgs.append({"role": "user", "content": r["question"]})
-        recovered_msgs.append({"role": "assistant", "content": r["answer"]})
-    st.session_state[session_key] = recovered_msgs
+    if is_guest_mode:
+        # 참관교사는 각자 스마트폰에서 깨끗한 개별 대화창으로 시작
+        st.session_state[session_key] = []
+    else:
+        # 1~6조 학생들은 새로고침 시에도 우리 조의 DB 대화 내역을 그대로 복구
+        df_prev = get_logs()
+        team_prev = df_prev[df_prev["team"] == current_label] if not df_prev.empty else pd.DataFrame()
+        recovered_msgs = []
+        for _, r in team_prev.iterrows():
+            recovered_msgs.append({"role": "user", "content": r["question"]})
+            recovered_msgs.append({"role": "assistant", "content": r["answer"]})
+        st.session_state[session_key] = recovered_msgs
 
 if cur_level == 1 and not step1_approved and stage_elapsed >= 5 and prog["hint1_sent"] == 0 and not is_guest_mode:
     proactive_msg1 = (
@@ -814,6 +832,7 @@ with col_graph:
         if step1_approved or is_guest_mode:
             st.markdown('<div class="unlock-alert-box">🎉 1단계 AI 탐구 인증 완료! 종이 활동지를 채웠다면 아래 초록색 왕버튼을 누르세요! 👇</div>', unsafe_allow_html=True)
             if st.button("🔓 [활동지 1단계 작성 완료] ➔ 2단계 그래프 열기 (클릭!)", key="unlock_btn_left_1", type="primary", use_container_width=True):
+                st.session_state[f"step1_msg_cnt_{current_label}"] = sum(1 for m in st.session_state[session_key] if m["role"] == "user")
                 update_team_progress(current_label, level=2, step1_app=1, reset_timer=True)
                 st.balloons()
                 st.rerun()
@@ -845,9 +864,9 @@ with col_graph:
         <div class="mission-card" style="border-left:5px solid #16a34a; background:#f0fdf4;">
             <b style="color:#166534; font-size:1.05rem;">🏆 [3단계 완성] 삼차함수 1:1:1 비율 격자 완성!</b><br>
             <span style="font-size:0.92rem; color:#14532d;">
-                눈으로 확인한 일정한 간격 비율이 우연이 아님을 증명할 시간입니다!<br>
-                ✍️ <b>[종이 활동지 뒷면 3단계]</b>에서 방정식 $x^3 - 3x - 2 = 0$ 을 조립제법으로 인수분해하여 대수적으로 손증명하세요.<br>
-                🌟 <b>[심화 퀘스트]:</b> 증명을 마친 모둠은 우측 마중물 버튼을 눌러 또 다른 숨겨진 비율에 도전해 보세요!
+                1. ✍️ <b>[종이 활동지 뒷면 3단계]</b>에서 방정식 $x^3 - 3x - 2 = 0$ 을 조립제법으로 인수분해하여 손증명을 완성하세요.<br>
+                2. 📢 <b>[최종 보고]:</b> 증명을 마친 모둠은 <b>오늘 발견한 삼차함수 비율 법칙을 한 줄로 요약하여 우측 AI에게 최종 보고</b>하세요! (선생님 전광판에 실시간 게시됩니다)<br>
+                3. 🌟 <b>[심화 퀘스트]:</b> 우측 마중물 버튼을 눌러 또 다른 숨겨진 비율($1:\sqrt{3}$)에도 도전해 보세요!
             </span>
         </div>
         """, unsafe_allow_html=True)
@@ -927,6 +946,7 @@ with col_chat:
     if cur_level == 1 and (step1_approved or is_guest_mode):
         st.markdown('<div class="unlock-alert-box">✅ 1단계 탐구 통과! 종이 활동지 1단계를 다 적었으면 아래 초록색 버튼을 누르세요! 👇</div>', unsafe_allow_html=True)
         if st.button("🔓 [활동지 1단계 작성 완료] ➔ 2단계 그래프 열기!", key="unlock_btn_right_1", type="primary", use_container_width=True):
+            st.session_state[f"step1_msg_cnt_{current_label}"] = sum(1 for m in st.session_state[session_key] if m["role"] == "user")
             update_team_progress(current_label, level=2, step1_app=1, reset_timer=True)
             st.balloons()
             st.rerun()
@@ -1019,14 +1039,22 @@ with col_chat:
                     user_turn_cnt = sum(1 for m in st.session_state[session_key] if m["role"] == "user")
                     
                     if cur_level == 1 and not step1_approved:
-                        student_said_ans1 = ("-1" in user_text_clean and "1" in user_text_clean) or ("쁠마1" in user_text_clean) or ("+-1" in user_text_clean) or ("3x" in user_text_clean)
+                        # '3x'만 쳤을 때는 열리지 않고, 반드시 극점 x좌표(-1과 1, 또는 쁠마1)를 언급했거나 AI가 승인했을 때만 오픈!
+                        student_said_ans1 = ("-1" in user_text_clean and "1" in user_text_clean) or ("쁠마1" in user_text_clean) or ("+-1" in user_text_clean) or ("±1" in user_text_clean)
                         if ("[APPROVE_STEP1]" in raw_reply) or student_said_ans1 or (user_turn_cnt >= 3 and not is_troll):
                             update_team_progress(current_label, step1_app=1)
                             new_approval = True
                             
                     elif cur_level == 2 and not step2_approved:
-                        student_said_ans2 = ("x=2" in user_text_clean) or ("(2,2)" in user_text_clean) or ("2" in user_text_clean and user_turn_cnt >= 2)
-                        if ("[APPROVE_STEP2]" in raw_reply) or student_said_ans2 or (user_turn_cnt >= 4 and not is_troll):
+                        # 1단계 대화 수를 빼고 오직 2단계에서 새로 나눈 질문 횟수만 계산!
+                        step1_cnt = st.session_state.get(f"step1_msg_cnt_{current_label}", 2)
+                        step2_turn_cnt = max(1, user_turn_cnt - step1_cnt)
+                        
+                        # 'y=2'나 'x^3'에 들어있는 숫자 2를 지워서, 진짜 교점 x=2를 말했는지 정밀 판별!
+                        check_x2_text = user_text_clean.replace("y=2", "").replace("x^2", "").replace("-2", "")
+                        student_said_ans2 = ("x=2" in user_text_clean) or ("(2,2)" in user_text_clean) or ("2" in check_x2_text and step2_turn_cnt >= 2)
+                        
+                        if ("[APPROVE_STEP2]" in raw_reply) or student_said_ans2 or (step2_turn_cnt >= 4 and not is_troll):
                             update_team_progress(current_label, step2_app=1)
                             new_approval = True
                     
