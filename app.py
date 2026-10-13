@@ -794,7 +794,7 @@ system_instruction = f"""
 
 # ★ 모델 호출 이중 안전장치 (gemini-2.5-flash 기본, 오류 시 gemini-1.5-flash 자동 전환)
 def get_safe_chat_session(history_list):
-    for m_name in ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"]:
+    for m_name in ["gemini-3.8-flash", "gemini-2.5-flash", "gemini-2.0-flash"]:
         try:
             m_obj = genai.GenerativeModel(model_name=m_name, system_instruction=system_instruction)
             return m_obj.start_chat(history=history_list)
@@ -1016,17 +1016,24 @@ with col_chat:
             with st.chat_message("assistant"):
                 with st.spinner("AI가 모둠의 질문을 분석 중입니다..."):
                     try:
-                        remind_rule = (
-                            " (주의: 학생이 스스로 도함수 근 -1, 1이나 극값을 찾아서 말했을 때만 답변 맨 끝에 [APPROVE_STEP1] 을 출력할 것! 학생이 모르면 유도만 할 것!)"
-                            if cur_level == 1 else
-                            " (주의: 학생이 스스로 교점 x=2 또는 2를 찾아서 말했을 때만 답변 맨 끝에 [APPROVE_STEP2] 를 출력할 것!)"
-                        )
+                        if cur_level == 1:
+                            remind_rule = (
+                                " (철칙: 학생이 미분식 3x^2-3만 말한 상태라면 절대 승인하지 말고, 3x^2-3=0이 되는 두 x좌표가 얼마인지 되물어라! "
+                                "오직 학생이 직접 '-1'과 '1'(또는 쁠마1, 마일과 일)을 입으로 말했을 때만 답변 맨 끝에 [APPROVE_STEP1] 을 출력할 것!)"
+                            )
+                        elif cur_level == 2:
+                            remind_rule = (
+                                " (철칙: 수평선 y=2나 중근만 말한 상태라면 절대 승인하지 말고, 오른쪽에서 다시 만나는 교점(x>0)의 x좌표가 얼마인지 끝까지 되물어라! "
+                                "오직 학생이 직접 교점 'x=2' 또는 '(2, 2)'를 찾아서 말했을 때만 답변 맨 끝에 [APPROVE_STEP2] 를 출력할 것!)"
+                            )
+                        else:
+                            remind_rule = ""
+
                         res = st.session_state[f"chat_{current_label}"].send_message(
                             f"[현재 LV{cur_level} 단계 ({stage_elapsed}분 경과) / {current_label} 발화]: {final_q}{remind_rule}"
                         )
                         raw_reply = res.text
                     except Exception as e:
-                        # 세션 만료나 모델 오류 시 재연결 시도
                         try:
                             st.session_state[f"chat_{current_label}"] = get_safe_chat_session([])
                             res = st.session_state[f"chat_{current_label}"].send_message(final_q)
@@ -1034,27 +1041,31 @@ with col_chat:
                         except Exception as e2:
                             raw_reply = f"일시적 연결 지연입니다. 다시 한 번 전송해 주세요: {e2}"
                     
+                    # ★ [무결점 승인 검문소]: 횟수 자동 오픈 완전 삭제! 학생이 실제로 정답을 언급했는지 파이썬이 직접 검증!
                     new_approval = False
+                    all_user_msgs = " ".join([m["content"] for m in st.session_state[session_key] if m["role"] == "user"]).replace(" ", "")
                     user_text_clean = final_q.replace(" ", "")
-                    user_turn_cnt = sum(1 for m in st.session_state[session_key] if m["role"] == "user")
                     
                     if cur_level == 1 and not step1_approved:
-                        # '3x'만 쳤을 때는 열리지 않고, 반드시 극점 x좌표(-1과 1, 또는 쁠마1)를 언급했거나 AI가 승인했을 때만 오픈!
-                        student_said_ans1 = ("-1" in user_text_clean and "1" in user_text_clean) or ("쁠마1" in user_text_clean) or ("+-1" in user_text_clean) or ("±1" in user_text_clean)
-                        if ("[APPROVE_STEP1]" in raw_reply) or student_said_ans1 or (user_turn_cnt >= 3 and not is_troll):
+                        # 학생의 누적 발화 안에 반드시 -1과 1(또는 쁠마1, 마일)이 실제로 존재해야만 승인! (3x^2-3만 백 번 쳐도 절대 안 열림)
+                         check_s1 = all_user_msgs.replace("-1", "")
+                        has_both_roots = ("-1" in all_user_msgs and "1" in check_s1) or ("쁠마1" in all_user_msgs) or ("+-1" in all_user_msgs) or ("±1" in all_user_msgs) or ("마일" in all_user_msgs)
+                        if has_both_roots and not is_troll:
                             update_team_progress(current_label, step1_app=1)
                             new_approval = True
                             
                     elif cur_level == 2 and not step2_approved:
-                        # 1단계 대화 수를 빼고 오직 2단계에서 새로 나눈 질문 횟수만 계산!
-                        step1_cnt = st.session_state.get(f"step1_msg_cnt_{current_label}", 2)
+                        # 2단계 진입 후 나눈 대화 횟수 계산
+                        user_turn_cnt = sum(1 for m in st.session_state[session_key] if m["role"] == "user")
+                        step1_cnt = st.session_state.get(f"step1_msg_cnt_{current_label}", 1)
                         step2_turn_cnt = max(1, user_turn_cnt - step1_cnt)
                         
-                        # 'y=2'나 'x^3'에 들어있는 숫자 2를 지워서, 진짜 교점 x=2를 말했는지 정밀 판별!
-                        check_x2_text = user_text_clean.replace("y=2", "").replace("x^2", "").replace("-2", "")
-                        student_said_ans2 = ("x=2" in user_text_clean) or ("(2,2)" in user_text_clean) or ("2" in check_x2_text and step2_turn_cnt >= 2)
+                        # 수평선 'y=2'나 제곱 'x^2', 극댓점 '(-1,2)'의 숫자 2를 모두 제거한 뒤에도 진짜 교점 '2'를 말했는지 검사!
+                        cleaned_q = user_text_clean.replace("y=2", "").replace("x^2", "").replace("(-1,2)", "").replace("-2", "").replace("2단계", "")
+                        said_x2 = ("x=2" in user_text_clean) or ("(2,2)" in user_text_clean) or ("2" in cleaned_q and step2_turn_cnt >= 2)
                         
-                        if ("[APPROVE_STEP2]" in raw_reply) or student_said_ans2 or (step2_turn_cnt >= 4 and not is_troll):
+                        # AI가 승인 태그를 줬더라도 학생이 '2' 관련 답을 안 했으면 절대 안 열어줌!
+                        if (said_x2 or ("[APPROVE_STEP2]" in raw_reply and "2" in cleaned_q)) and not is_troll:
                             update_team_progress(current_label, step2_app=1)
                             new_approval = True
                     
