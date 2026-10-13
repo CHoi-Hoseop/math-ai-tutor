@@ -256,7 +256,7 @@ def graph_png(level: int) -> bytes:
         ax1.set_title(r"$y = f(x) = x^3 - 3x$", fontsize=13, color="#1e40af", fontweight="bold")
         ax2.set_title(r"$y = f'(x)$", fontsize=13, color="#475569")
         ax1.plot([0], [0], "ko", ms=5); ax2.plot([0], [0], "ko", ms=5)
-        ax1.text(0.2, 3.6, "AI와 문답 후 그래프가 열립니다", fontsize=10, color="#94a3b8")
+        
     else:
         ax1.set_title(r"$y = f(x) = x^3 - 3x$" + (r"$\quad [1:1:1]$" if level == 3 else ""), fontsize=13,
                       color="#15803d" if level == 3 else "#1e40af", fontweight="bold")
