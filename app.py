@@ -509,10 +509,8 @@ if user_mode == "👨‍🏫 교사용 실시간 관제" and is_teacher_authoriz
             st_elap = get_stage_elapsed_min(t_name)
             
             with col:
-                has_troll = False
-                if t_cnt > 0:
-                    last_row = t_logs.iloc[-1]
-                    has_troll = (last_row.get("is_troll", 0) == 1)
+                # 해당 조의 전체 대화 중 비수학 질문(is_troll == 1) 총 횟수 계산
+                troll_cnt = int(t_logs["is_troll"].sum()) if (t_cnt > 0 and "is_troll" in t_logs.columns) else 0
                 
                 time_badge = f'<span class="badge-time">현단계 {st_elap}분째</span>'
                 
@@ -525,8 +523,8 @@ if user_mode == "👨‍🏫 교사용 실시간 관제" and is_teacher_authoriz
                 else:
                     lvl_badge = '<span style="background:#dcfce7; color:#166534; padding:2px 7px; border-radius:4px; font-size:0.75rem; font-weight:700;">🏆 LV3(증명중)</span>'
 
-                if has_troll:
-                    status_badge = '<span class="badge-troll">🚨 비수학질문</span>'
+                if troll_cnt > 0:
+                    status_badge = f'<span class="badge-troll">🚨 비수학 {troll_cnt}건</span> <span class="badge-ok">문답 {t_cnt}회</span>'
                 elif t_cnt == 0:
                     status_badge = '<span class="badge-stuck">🟡 대화 0회</span>'
                 else:
@@ -748,7 +746,7 @@ system_instruction = f"""
 현재 모둠 레벨: LV {cur_level} (현재 단계 체류 시간: {stage_elapsed}분 경과)
 
 [장난 및 비수학적 질문 방어 철칙]
-- 잡담, 게임, 장난, 욕설 질문에는 단호하게 "선생님의 실시간 관제 화면에 기록됩니다. 지금은 수학 탐구 시간입니다. 책상 위 활동지 질문으로 돌아오세요!"라고만 답해.
+- 잡담, 급식, 게임, 장난, 욕설 등 수학과 무관한 질문에는 단호하게 "선생님의 실시간 관제 화면에 기록됩니다. 지금은 수학 탐구 시간입니다. 책상 위 활동지 질문으로 돌아오세요! [TROLL_DETECTED]"라고 답해.
 
 [학생 답변 채점 및 시간별 유연성 원칙]
 - 학생이 오타를 내거나("쁠마1", "x제곱", "2요"), 표현이 거칠더라도 수학적 맥락과 핵심 의미(도함수 근, 교점 x=2, 접선의 의미 등)가 올바르면 긍정적으로 수용하고 칭찬해 줘.
@@ -1032,7 +1030,11 @@ with col_chat:
                             update_team_progress(current_label, step2_app=1)
                             new_approval = True
                     
-                    bot_reply = raw_reply.replace("[APPROVE_STEP1]", "").replace("[APPROVE_STEP2]", "").strip()
+                    # 금지어에 없었더라도 AI가 비수학 질문으로 판정했으면 즉시 경고(is_troll=1) 활성화!
+                    if ("[TROLL_DETECTED]" in raw_reply) or ("관제 화면에 기록됩니다" in raw_reply):
+                        is_troll = 1
+                        
+                    bot_reply = raw_reply.replace("[APPROVE_STEP1]", "").replace("[APPROVE_STEP2]", "").replace("[TROLL_DETECTED]", "").strip()
                     st.markdown(bot_reply)
                     st.session_state[session_key].append({"role": "assistant", "content": bot_reply})
                     save_log(current_label, final_q, bot_reply, is_troll)
