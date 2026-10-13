@@ -202,7 +202,7 @@ with st.sidebar:
 if user_mode == "👨‍🏫 교사용 실시간 관제" and is_teacher_authorized:
     h_col1, h_col2 = st.columns([3.2, 1.3])
     with h_col1:
-        st.title("🖥️ [교단 관제 전광판] 6개 조 실시간 탐구 현황")
+        st.title("🖥️ 실시간 탐구 현황")
         st.caption("조별 카드에서 진행 레벨과 대화 내역을 실시간으로 확인하고 밀착 피드백하세요.")
     with h_col2:
         st.write("")
@@ -270,7 +270,7 @@ if user_mode == "👨‍🏫 교사용 실시간 관제" and is_teacher_authoriz
         st.markdown(f"""
         <div style="display:flex; justify-content:space-between; align-items:center; background:#0f172a; padding:10px 18px; border-radius:10px; margin-bottom:12px;">
             <div style="color:#e2e8f0; font-size:1.05rem; font-weight:700;">
-                🏫 문화고등학교 미적분Ⅰ 관제 시스템 <span style="color:#94a3b8; font-size:0.85rem; font-weight:500;">(경북 경주)</span>
+                🏫 문화고등학교 미적분Ⅰ 관제 시스템 <span style="color:#94a3b8; font-size:0.85rem; font-weight:500;"></span>
             </div>
             <div style="display:flex; align-items:center; gap:16px;">
                 <div style="color:#94a3b8; font-size:0.9rem; font-weight:600;">
@@ -516,9 +516,9 @@ with col_graph:
         
         m_c1, m_c2, m_btn = st.columns([1, 1, 1.2])
         with m_c1:
-            in_max_x = st.text_input("극댓값 $x$좌표", key=f"in_max_{current_label}", placeholder="-1")
+            in_max_x = st.text_input("극댓값 $x$좌표", key=f"in_max_{current_label}", placeholder="숫자만 입력하세요.")
         with m_c2:
-            in_min_x = st.text_input("극솟값 $x$좌표", key=f"in_min_{current_label}", placeholder="1")
+            in_min_x = st.text_input("극솟값 $x$좌표", key=f"in_min_{current_label}", placeholder="숫자만 입력하세요.")
         with m_btn:
             st.write("")
             if st.button("🔓 1단계 해제", use_container_width=True):
@@ -545,7 +545,7 @@ with col_graph:
         
         m2_c1, m2_btn = st.columns([1.5, 1.2])
         with m2_c1:
-            in_cross_x = st.text_input("교점의 $x$좌표 ($x > 0$)", key=f"in_cross_{current_label}", placeholder="2")
+            in_cross_x = st.text_input("교점의 $x$좌표 ($x > 0$)", key=f"in_cross_{current_label}", placeholder="숫자만 입력하세요.")
         with m2_btn:
             st.write("")
             if st.button("🔓 황금비율 해제", use_container_width=True):
