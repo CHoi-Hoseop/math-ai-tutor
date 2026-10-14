@@ -28,7 +28,7 @@ GUEST = "참관교사"
 CLASS_MIN = 45                                  # 수업 시간(분)
 MODEL_CHAIN = ["gemini-3.8-flash", "gemini-3.6-flash", "gemini-3.5-flash-lite"]
 PRIMER_OPEN_MIN = 3                             # 마중물 질문 버튼 개방 (단계 체류 분)
-HINT_SCHEDULE = {1: (6, 10), 2: (7, 12)}        # 단계별 (부드러운 힌트, 결정적 힌트) 발송 분
+HINT_SCHEDULE = {1: (5, 8), 2: (7, 11), 3: (5, 9)}   # 단계별 (부드러운 힌트, 결정적 힌트) 자동 발송 분 (수업시작 후, 단계 시작 기준)
 MIN_TURNS_FOR_APPROVE = 2                       # 승인에 필요한 단계 내 최소 학생 발화 수
 SILENT_MIN = 4                                  # 이 시간 이상 질문 없으면 '침묵' 표시
 DB_FILE = "class_monitor.db"
@@ -123,7 +123,7 @@ def init_db():
                 c.execute(f"ALTER TABLE logs ADD COLUMN {col} {typ}")
             except Exception:
                 pass
-        for col, typ in [("hint_lv1", "INTEGER DEFAULT 0"), ("hint_lv2", "INTEGER DEFAULT 0")]:
+        for col, typ in [("hint_lv1", "INTEGER DEFAULT 0"), ("hint_lv2", "INTEGER DEFAULT 0"), ("hint_lv3", "INTEGER DEFAULT 0")]:
             try:
                 c.execute(f"ALTER TABLE team_progress ADD COLUMN {col} {typ}")
             except Exception:
@@ -175,26 +175,26 @@ def get_logs(team=None, client=None, kinds=None, since=None):
 
 def _row_to_prog(r):
     return {"team": r[0], "level": int(r[1] or 1), "step1_approved": int(r[2] or 0), "step2_approved": int(r[3] or 0),
-            "stage_start_time": r[4] or ts(), "hint_lv1": int(r[5] or 0), "hint_lv2": int(r[6] or 0)}
+            "stage_start_time": r[4] or ts(), "hint_lv1": int(r[5] or 0), "hint_lv2": int(r[6] or 0), "hint_lv3": int(r[7] or 0)}
 
 def get_all_progress():
     out = {}
     try:
         with db() as c:
-            rows = c.execute("SELECT team, level, step1_approved, step2_approved, stage_start_time, hint_lv1, hint_lv2 FROM team_progress").fetchall()
+            rows = c.execute("SELECT team, level, step1_approved, step2_approved, stage_start_time, hint_lv1, hint_lv2, hint_lv3 FROM team_progress").fetchall()
         for r in rows:
             out[r[0]] = _row_to_prog(r)
     except Exception as e:
         db_warn(e)
     for t in TEAMS:
-        out.setdefault(t, {"team": t, "level": 1, "step1_approved": 0, "step2_approved": 0, "stage_start_time": ts(), "hint_lv1": 0, "hint_lv2": 0})
+        out.setdefault(t, {"team": t, "level": 1, "step1_approved": 0, "step2_approved": 0, "stage_start_time": ts(), "hint_lv1": 0, "hint_lv2": 0, "hint_lv3": 0})
     return out
 
 def get_progress(team):
     return get_all_progress()[team]
 
 def update_progress(team, reset_timer=False, **fields):
-    allowed = {"level", "step1_approved", "step2_approved", "hint_lv1", "hint_lv2"}
+    allowed = {"level", "step1_approved", "step2_approved", "hint_lv1", "hint_lv2", "hint_lv3"}
     sets, args = [], []
     for k, v in fields.items():
         if k in allowed and v is not None:
@@ -348,13 +348,13 @@ CANNED = {
 def hint_policy(level, stage_min, turns):
     if level == 3:
         return "LV3는 증명 안내 단계이므로 조립제법 절차는 친절히, 그러나 몫의 계수는 학생이 먼저 말하게 유도해."
-    if stage_min < 4:
+    if stage_min < 3:
         return ("[힌트 수위: 0단계-되묻기] 지금은 탐구 초기야. 어떤 공식·숫자도 먼저 알려주지 말고, 학생의 생각을 끌어내는 질문 1개로만 답해. "
                 "답변은 3문장 이내로 짧게.")
-    if stage_min < 8:
+    if stage_min < 6:
         return ("[힌트 수위: 1단계-방향 제시] '무엇을 해야 하는지'(미분하기 / 수평선의 식 세우기 / 방정식 세우기 등)는 알려줘도 되지만, "
                 "계산 결과 숫자(근, 교점 좌표)는 절대 먼저 말하지 마. 답변은 4문장 이내.")
-    if stage_min < 12:
+    if stage_min < 9:
         return ("[힌트 수위: 2단계-결정적 힌트] 학생이 힘들어하고 있어. 도함수 식(3x²-3)이나 인수 (x+1)² 처럼 '한 단계 전'까지는 보여주되, "
                 "최종 답(x=±1, x=2)은 학생이 직접 말하게 마지막 한 걸음만 남겨 둬.")
     return ("[힌트 수위: 3단계-마무리 지원] 체류 시간이 많이 지났어. 최종 답을 거의 드러내는 질문(예: '제곱해서 1이 되는 두 수는?', "
@@ -421,6 +421,25 @@ HINTS = {
     (2, 2): "💡 **[AI 튜터의 결정적 힌트]** $x^3-3x-2=0$ 은 $x=-1$에서 곡선과 직선이 **접하므로** $(x+1)^2$ 을 인수로 가져. 즉 $(x+1)^2(x-\\square)=0$ 꼴이지. 양변의 상수항을 비교하면 $\\square$ 는 얼마일까? 그 값을 보내 줘!",
 }
 
+HINTS[(3, 1)] = "💡 **[AI 튜터의 살짝 힌트]** 2단계에서 곡선이 수평선에 **접하는 점** $x=-1$ 은 방정식 $x^3-3x-2=0$ 의 근으로서 어떤 특징이 있었지? 접점의 근은 **두 번** 겹치니까, 조립제법을 $x=-1$ 로 한 번 한 뒤 나온 몫에 다시 $-1$ 을 넣어 봐. 몫이 어떻게 줄어드는지 보내 줘!"
+HINTS[(3, 2)] = "💡 **[AI 튜터의 결정적 힌트]** $x^3-3x-2=(x+1)^2(x-\\square)$ 꼴이야. 양변의 상수항을 비교하면 $\\square$ 는 얼마일까? 그 값이 접점이 아닌 교점의 $x$좌표야. 구했으면 '극대~극소 : 극소~교점' 의 비도 적어서 최종 보고로 보내 줘!"
+
+def claim_hint(team, lv, expect, nxt):
+    """학생 화면·교사 화면이 동시에 호출해도 같은 힌트가 두 번 나가지 않도록 DB에서 한 번만 선점"""
+    col = f"hint_lv{int(lv)}"
+    try:
+        with db() as c:
+            cur = c.execute(f"UPDATE team_progress SET {col}=? WHERE team=? AND {col}=?", (int(nxt), team, int(expect)))
+            return cur.rowcount == 1
+    except Exception as e:
+        db_warn(e)
+        return False
+
+def _manual_hint_cb(team):
+    """교사 관제 [힌트] 버튼 콜백 (최신 진행도를 다시 읽어 중복 클릭에도 안전)"""
+    send_manual_hint(team, get_progress(team))
+    st.toast(f"{team}에 힌트 발송", icon="📨")
+
 def maybe_send_hints(team, prog, class_active):
     """단계 체류 시간에 따라 선제 힌트를 DB에 기록 (수업시작 버튼이 눌린 상태에서만 작동)"""
     if not class_active:
@@ -428,28 +447,28 @@ def maybe_send_hints(team, prog, class_active):
     lv = prog["level"]
     if lv not in HINT_SCHEDULE:
         return False
-    approved = prog["step1_approved"] if lv == 1 else prog["step2_approved"]
-    if approved:
+    if (lv == 1 and prog["step1_approved"]) or (lv == 2 and prog["step2_approved"]):
         return False
-    sent = prog["hint_lv1"] if lv == 1 else prog["hint_lv2"]
+    sent = prog.get(f"hint_lv{lv}", 0)
     mins = stage_elapsed_min(prog)
     gentle, decisive = HINT_SCHEDULE[lv]
     nxt = None
-    if sent == 0 and mins >= gentle:
+    if sent == 0 and mins >= decisive:      # 화면이 꺼져 있었던 경우 등: 부드러운 힌트를 건너뛰고 바로 결정적 힌트
+        nxt = 2
+    elif sent == 0 and mins >= gentle:
         nxt = 1
     elif sent == 1 and mins >= decisive:
         nxt = 2
-    if nxt is None:
+    if nxt is None or not claim_hint(team, lv, sent, nxt):
         return False
     save_log(team, "system", "hint", f"[⏱️ 단계 {mins}분 경과: AI 선제 힌트 {nxt}차]", HINTS[(lv, nxt)], 0, lv)
-    update_progress(team, **{f"hint_lv{lv}": nxt})
     return True
 
 def send_manual_hint(team, prog):
     lv = prog["level"]
     if lv not in HINT_SCHEDULE:
         return
-    sent = prog["hint_lv1"] if lv == 1 else prog["hint_lv2"]
+    sent = prog.get(f"hint_lv{lv}", 0)
     nxt = min(2, sent + 1)
     if sent >= 2:
         return
@@ -474,6 +493,9 @@ if "client_id" not in st.session_state:
 
 period_label, class_elapsed, class_active = class_clock()
 
+def _leave_mode():
+    st.session_state["mode"] = None
+
 with st.sidebar:
     st.markdown("## 📐 미적분Ⅰ 탐구 교실")
     if st.session_state["mode"] is None:
@@ -483,9 +505,7 @@ with st.sidebar:
             st.rerun()
     else:
         st.success(f"현재 접속: **{st.session_state['mode']}**")
-        if st.button("🔁 다른 조로 바꾸기", use_container_width=True):
-            st.session_state["mode"] = None
-            st.rerun()
+        st.button("🔁 다른 조로 바꾸기", use_container_width=True, on_click=_leave_mode)
     st.markdown("---")
     st.metric(f"⏱️ {period_label}", f"{class_elapsed}분 경과", f"남은 시간 {max(0, CLASS_MIN - class_elapsed)}분", delta_color="off")
 
@@ -532,8 +552,8 @@ def level_badge(prog):
     return '<span class="badge b-lv3">🏆 LV3 (증명중)</span>'
 
 def timeline_html(elap):
-    steps = [("1단계 문제 제기", "0~8분 · 증감표", elap <= 8), ("2단계 AI 기하 탐구", "8~22분 · 교점·자로 측정", 8 < elap <= 22),
-             ("3단계 대수적 정당화", "22~37분 · 인수분해 증명", 22 < elap <= 37), ("4단계 정리·심화", "37~45분 · 공유", elap > 37)]
+    steps = [("1단계 문제 제기", "0~9분 · 증감표", elap <= 9), ("2단계 AI 기하 탐구", "9~25분 · 교점·자로 측정", 9 < elap <= 25),
+             ("3단계 대수적 정당화", "25~34분 · 인수분해 증명", 25 < elap <= 34), ("4단계 정리·심화", "34~45분 · 공유", elap > 34)]
     return '<div class="tl">' + "".join(f'<div class="{"on" if on else ""}"><b>{n}</b><small>{d}</small></div>' for n, d, on in steps) + "</div>"
 
 def render_chat_rows(df):
@@ -591,12 +611,12 @@ if mode == "👨‍🏫 교사(관제)":
     with h1:
         st.title("🖥️ 교단 관제 전광판 — 6개 조 실시간 탐구 현황")
     with h2:
-        auto = st.toggle("🔄 8초 자동 갱신", value=True)
+        auto = st.toggle("🔄 8초 자동 갱신 (자동 힌트 포함)", value=True)
         b1, b2, b3, b4 = st.columns(4)
         if b1.button("🔔 수업시작", use_container_width=True, help="지금을 0분으로 전 기기 타이머 동기화 + 조별 단계 타이머/힌트 초기화"):
             set_state("class_start_time", ts())
             for t in TEAMS:
-                update_progress(t, reset_timer=True, hint_lv1=0, hint_lv2=0)
+                update_progress(t, reset_timer=True, hint_lv1=0, hint_lv2=0, hint_lv3=0)
             st.toast("전 기기 타이머 동시 시작!", icon="🔔"); st.rerun()
         if b2.button("🔄 수동갱신", use_container_width=True):
             st.rerun()
@@ -622,6 +642,9 @@ if mode == "👨‍🏫 교사(관제)":
         st.markdown(timeline_html(elap), unsafe_allow_html=True)
 
         progs = get_all_progress()
+        if active:   # 교사 화면이 열려 있으면 학생 태블릿과 무관하게 시간 경과 힌트를 자동 발송
+            if any([maybe_send_hints(t, progs[t], True) for t in TEAMS]):
+                progs = get_all_progress()
         all_logs = get_logs()
         now = kst_now()
 
@@ -666,9 +689,9 @@ if mode == "👨‍🏫 교사(관제)":
                 if c1.button("🔍 크게", key=f"zoom_{t}", use_container_width=True):
                     st.session_state["zoom_team"] = t; st.rerun()
                 lv = p["level"]
-                hint_sent = p["hint_lv1"] if lv == 1 else p["hint_lv2"] if lv == 2 else 2
-                if c2.button(f"📨 힌트{min(hint_sent + 1, 2)}차", key=f"hint_{t}", use_container_width=True, disabled=(hint_sent >= 2 or lv == 3), help="이 조 채팅창에 다음 단계 힌트를 즉시 보냅니다."):
-                    send_manual_hint(t, p); st.toast(f"{t}에 힌트 발송", icon="📨"); st.rerun()
+                hint_sent = p.get(f"hint_lv{lv}", 0)
+                c2.button(f"📨 힌트{min(hint_sent + 1, 2)}차", key=f"hint_{t}", use_container_width=True, disabled=(hint_sent >= 2),
+                          on_click=_manual_hint_cb, args=(t,), help="이 조 채팅창에 다음 단계 힌트를 즉시 보냅니다. (시간이 지나면 자동으로도 나갑니다)")
                 if lv < 3:
                     if c3.button(f"⚡ LV{lv + 1} 오픈", key=f"force_{t}", use_container_width=True, help="교사 직권으로 다음 단계를 바로 열어줍니다."):
                         update_progress(t, level=lv + 1, step1_approved=1, step2_approved=(1 if lv + 1 == 3 else 0), reset_timer=True)
