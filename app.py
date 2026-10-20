@@ -366,7 +366,7 @@ def summary_graph_parallel(t: float = 0.8) -> bytes:
         ax.text((x1 + x2) / 2, -4.25, "1", fontsize=13, fontweight="bold", color="#15803d", ha="center")
 
     ax.set_xlim(-2.45, 2.45); ax.set_ylim(-4.8, 4.8)
-    ax.set_title(rf"Parallel Tangents (slope $m = {m:.2f}$) $\quad \Longrightarrow \quad [\,1 : 1 : 1 : 1\,]$",
+    ax.set_title(rf"기울어진 평행한 두 접선 ($\,m = {m:.2f}\,$) $\quad \Longrightarrow \quad [\,1 : 1 : 1 : 1\,]$",
                  fontsize=15, fontweight="bold", color="#0f172a", pad=12)
     ax.legend(loc="upper left", fontsize=11)
     ax.grid(True, alpha=0.2, ls="--")
