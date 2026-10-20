@@ -695,7 +695,24 @@ MISSION_CARD = {
         "③ <b>한 번 더!</b> 극솟점 (1, −2)에서 수평선 y = −2 를 그으면? 같은 방법으로 확인하세요.<br>"
         "④ <b>최종 보고</b>: 발견한 비율 법칙을 한 문장으로 AI에게 보고하세요(선생님 전광판 게시). 남는 시간엔 <b>심화 퀘스트</b>!"),
 }
-
+def play_persistent_audio(path):
+    if not path or not os.path.exists(path):
+        return
+    import base64
+    with open(path, "rb") as f:
+        b64 = base64.b64encode(f.read()).decode("utf-8")
+    components.html(f"""<script>
+    (function() {{
+        try {{
+            const P = window.parent;
+            if (P.__csAudio && !P.__csAudio.paused && !P.__csAudio.ended) return;
+            const a = new P.Audio("data:audio/mpeg;base64,{b64}");
+            P.__csAudio = a;
+            const pr = a.play();
+            if (pr && pr.catch) pr.catch(function(e) {{ console.warn("오디오 재생 차단:", e); }});
+        }} catch (e) {{ console.warn("오디오 오류:", e); }}
+    }})();
+    </script>""", height=0)
 # ----------------------------------------------------------------------------
 # 8. 교실 전광판 (디스플레이 전용) & 교사 관제 (태블릿 리모컨)
 # ----------------------------------------------------------------------------
@@ -1019,14 +1036,7 @@ if mode in (BOARD_MODE, REMOTE_MODE):
                 fallback_mp3 = "audio/troll.mp3"
                 target_audio = team_mp3 if os.path.exists(team_mp3) else (fallback_mp3 if os.path.exists(fallback_mp3) else None)
                 if target_audio:
-                    import base64
-                    with open(target_audio, "rb") as f:
-                        b64_audio = base64.b64encode(f.read()).decode("utf-8")
-                    components.html(f"""
-                        <audio autoplay="true">
-                            <source src="data:audio/mp3;base64,{b64_audio}" type="audio/mp3">
-                        </audio>
-                    """, height=0)
+                    play_persistent_audio(target_audio)
         st.session_state["prev_troll_cnt"] = total_trolls
 
         # ★ 특정 조 확대 보기 (전광판에서는 다른 요소를 숨기고 확대 창만 꽉 차게 띄워 스크롤 방지!)
@@ -1287,17 +1297,18 @@ with col_c:
         else:
             stage_df = hist_df[hist_df["kind"] == "chat"]
         stage_msgs = [str(q) for q in stage_df["question"].tolist()] if not stage_df.empty else []
-        if st.session_state.pop("play_troll_audio", False):
+        # DB의 딴청 기록(id)이 새로 생기면 재생 → 같은 조 태블릿 2대 모두 울림
+        if not hist_df.empty:
+            _tr = hist_df[(hist_df["kind"] == "chat") & (hist_df["is_troll"].fillna(0).astype(int) == 1)]
+            max_tid = int(_tr["id"].max()) if not _tr.empty else 0
+        else:
+            max_tid = 0
+        if "seen_troll_id" not in st.session_state:
+            st.session_state["seen_troll_id"] = max_tid          # 처음 접속 시 과거 기록은 재생 안 함
+        elif max_tid > st.session_state["seen_troll_id"]:
+            st.session_state["seen_troll_id"] = max_tid
             t_mp3 = "audio/troll_tablet.mp3" if os.path.exists("audio/troll_tablet.mp3") else "audio/troll.mp3"
-            if os.path.exists(t_mp3):
-                import base64
-                with open(t_mp3, "rb") as f:
-                    b64_audio = base64.b64encode(f.read()).decode("utf-8")
-                components.html(f"""
-                    <audio autoplay="true">
-                        <source src="data:audio/mp3;base64,{b64_audio}" type="audio/mp3">
-                    </audio>
-                """, height=0)
+            play_persistent_audio(t_mp3)
         box = st.container(height=400)
         with box:
             if hist_df.empty:
@@ -1360,8 +1371,6 @@ with col_c:
                     st.markdown(clean)
 
         save_log(team, client_id, "chat", final_q, clean, int(troll), level)
-        if troll:
-            st.session_state["play_troll_audio"] = True
 
         if not is_guest and not approved and not troll:
             msgs = stage_msgs + [final_q]
