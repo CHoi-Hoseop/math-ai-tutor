@@ -1006,7 +1006,7 @@ if mode in (BOARD_MODE, REMOTE_MODE):
                 mission_audio(1, "화면은 아직 비어 있어요. AI에게 극값이 생기는 위치를 질문해 f'(x)와 그 식이 0이 되는 x를 찾고, 활동지 1단계 증감표를 채우세요.")
         st.session_state["prev_step1_cmd"] = step1_cmd
 
-        # ★ 딴청 질문 공개 방송 (교실 스피커가 연결된 전광판에서만 재생)
+        # ★ 딴청 질문 감지 시 새로고침에 끊기지 않고 오디오가 끝까지 재생되도록 컴포넌트 처리
         troll_rows = all_logs[all_logs["is_troll"].fillna(0).astype(int) == 1] if not all_logs.empty else pd.DataFrame()
         total_trolls = len(troll_rows)
         prev_trolls = st.session_state.get("prev_troll_cnt", total_trolls)
@@ -1016,10 +1016,17 @@ if mode in (BOARD_MODE, REMOTE_MODE):
             st.toast(f"🚨 {culprit_team}에서 딴청 질문이 감지되었습니다!", icon="🔊")
             if is_board:
                 team_mp3 = f"audio/troll_{team_num}.mp3"
-                if os.path.exists(team_mp3):
-                    st.audio(team_mp3, format="audio/mp3", autoplay=True)
-                elif os.path.exists("audio/troll.mp3"):
-                    st.audio("audio/troll.mp3", format="audio/mp3", autoplay=True)
+                fallback_mp3 = "audio/troll.mp3"
+                target_audio = team_mp3 if os.path.exists(team_mp3) else (fallback_mp3 if os.path.exists(fallback_mp3) else None)
+                if target_audio:
+                    import base64
+                    with open(target_audio, "rb") as f:
+                        b64_audio = base64.b64encode(f.read()).decode("utf-8")
+                    components.html(f"""
+                        <audio autoplay="true">
+                            <source src="data:audio/mp3;base64,{b64_audio}" type="audio/mp3">
+                        </audio>
+                    """, height=0)
         st.session_state["prev_troll_cnt"] = total_trolls
 
         # ★ 특정 조 확대 보기 (전광판에서는 다른 요소를 숨기고 확대 창만 꽉 차게 띄워 스크롤 방지!)
