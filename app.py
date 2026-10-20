@@ -340,6 +340,11 @@ def summary_graph_main(show_sqrt3: bool = False) -> bytes:
 @st.cache_data(show_spinner=False)
 def summary_graph_parallel(t: float = 0.8) -> bytes:
     """접점 x = -t, +t 에서의 평행한 두 접선과 교점 (-2t, -t, 0, t, 2t -> 1:1:1:1)"""
+    import matplotlib.pyplot as plt
+    # ★ 맷플롯립 한글 깨짐 방지 설정 (시스템 기본 폰트 강제 지정)
+    plt.rcParams['font.family'] = 'Malgun Gothic' if os.name == 'nt' else 'AppleGothic'
+    plt.rcParams['axes.unicode_minus'] = False
+
     fig = Figure(figsize=(11, 5.2), dpi=130)
     ax = fig.subplots()
     x = np.linspace(-2.45, 2.45, 500)
@@ -351,9 +356,9 @@ def summary_graph_parallel(t: float = 0.8) -> bytes:
     ax.spines["left"].set_position("zero"); ax.spines["bottom"].set_position("zero")
     ax.spines["right"].set_color("none"); ax.spines["top"].set_color("none")
     ax.plot(x, y, color="#1e40af", lw=3.2, label=r"$f(x)=x^3-3x$")
-    # ★ 한글 대신 영어와 수식 기호 사용 (글자 깨짐 방지)
-    ax.plot(x, y_tan1, color="#dc2626", ls="--", lw=2.0, label=rf"Tangent 1 ($m = {m:.2f}$)")
-    ax.plot(x, y_tan2, color="#2563eb", ls="--", lw=2.0, label=rf"Tangent 2 ($m = {m:.2f}$)")
+    # ★ 깔끔한 한글 범례 적용
+    ax.plot(x, y_tan1, color="#dc2626", ls="--", lw=2.0, label=rf"접선 1 (기울기 $m = {m:.2f}$)")
+    ax.plot(x, y_tan2, color="#2563eb", ls="--", lw=2.0, label=rf"접선 2 (기울기 $m = {m:.2f}$)")
 
     pts_x = [-2*t, -t, 0, t, 2*t]
     for px in pts_x:
@@ -367,8 +372,8 @@ def summary_graph_parallel(t: float = 0.8) -> bytes:
         ax.text((x1 + x2) / 2, -4.25, "1", fontsize=13, fontweight="bold", color="#15803d", ha="center")
 
     ax.set_xlim(-2.45, 2.45); ax.set_ylim(-4.8, 4.8)
-    # ★ 제목도 영어와 수식으로 깔끔하게 처리하여 폰트 깨짐 원천 차단!
-    ax.set_title(rf"Parallel Tangents ($\,m = {m:.2f}\,$) $\quad \Longrightarrow \quad [\,1 : 1 : 1 : 1\,]$",
+    # ★ 완벽하게 한글로 출력되는 제목!
+    ax.set_title(rf"기울어진 평행한 두 접선 ($\,m = {m:.2f}\,$) $\quad \Longrightarrow \quad [\,1 : 1 : 1 : 1\,]$",
                  fontsize=15, fontweight="bold", color="#0f172a", pad=12)
     ax.legend(loc="upper left", fontsize=11)
     ax.grid(True, alpha=0.2, ls="--")
