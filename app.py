@@ -792,18 +792,34 @@ if mode in (BOARD_MODE, REMOTE_MODE):
         <span class="pill" style="background:#1e293b;color:#38bdf8;font-family:monospace;">⌚ {kst_now().strftime('%H:%M:%S')}</span></div></div>""", unsafe_allow_html=True)
         st.markdown(timeline_html(elap), unsafe_allow_html=True)
 
-        # ★ [전광판 전용] 리모컨에서 누른 스크롤 위치(board_scroll)로 화면을 부드럽게 이동!
+        # ★ [전광판 전용] 리모컨에서 누른 스크롤 위치(board_scroll)를 매 갱신마다 정확히 타겟팅!
         if is_board:
             target_y = int(get_state("board_scroll") or "0")
-            prev_y = st.session_state.get("prev_scroll_y", 0)
-            if target_y != prev_y:
-                st.session_state["prev_scroll_y"] = target_y
-                components.html(f"""<script>
+            prev_y = st.session_state.get("prev_scroll_y", -1)
+            behavior = "smooth" if target_y != prev_y else "auto"
+            st.session_state["prev_scroll_y"] = target_y
+            components.html(f"""<script>
+                (function() {{
                     const doc = window.parent.document;
-                    const main = doc.querySelector('section.main') || doc.querySelector('[data-testid="stAppViewContainer"]') || window.parent;
-                    main.scrollTo({{top: {target_y}, behavior: 'smooth'}});
-                    window.parent.scrollTo({{top: {target_y}, behavior: 'smooth'}});
-                </script>""", height=0)
+                    const y = {target_y};
+                    const beh = "{behavior}";
+                    // Streamlit 모든 버전의 스크롤 가능 컨테이너를 전부 탐색하여 이동
+                    const targets = [
+                        doc.querySelector('[data-testid="stMain"]'),
+                        doc.querySelector('section.main'),
+                        doc.querySelector('[data-testid="stAppViewContainer"]'),
+                        doc.querySelector('.main'),
+                        doc.documentElement,
+                        doc.body
+                    ];
+                    targets.forEach(el => {{
+                        if (el && el.scrollHeight > el.clientHeight) {{
+                            el.scrollTo({{top: y, behavior: beh}});
+                        }}
+                    }});
+                    window.parent.scrollTo({{top: y, behavior: beh}});
+                }})();
+            </script>""", height=0)
 
         # =====================================================================
         # ★ [🎓 최종정리] 화면 (탭 전환 + 그래프 100% 전체확대 + 슬라이더 + 정답 공개 모두 연동!)
