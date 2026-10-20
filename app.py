@@ -339,6 +339,7 @@ def summary_graph_main(show_sqrt3: bool = False) -> bytes:
 
 @st.cache_data(show_spinner=False)
 def summary_graph_parallel(t: float = 0.8) -> bytes:
+    """접점 x = -t, +t 에서의 평행한 두 접선과 교점 (-2t, -t, 0, t, 2t -> 1:1:1:1)"""
     fig = Figure(figsize=(11, 5.2), dpi=130)
     ax = fig.subplots()
     x = np.linspace(-2.45, 2.45, 500)
@@ -350,8 +351,10 @@ def summary_graph_parallel(t: float = 0.8) -> bytes:
     ax.spines["left"].set_position("zero"); ax.spines["bottom"].set_position("zero")
     ax.spines["right"].set_color("none"); ax.spines["top"].set_color("none")
     ax.plot(x, y, color="#1e40af", lw=3.2, label=r"$f(x)=x^3-3x$")
-    ax.plot(x, y_tan1, color="#dc2626", ls="--", lw=2.0, label=f"접선 1 (기울기 m = {m:.2f})")
-    ax.plot(x, y_tan2, color="#2563eb", ls="--", lw=2.0, label=f"접선 2 (기울기 m = {m:.2f})")
+    
+    # ★ 범례 글자를 깨지지 않는 영문과 수식(Tangent 1, 2)으로 깔끔하게 지정!
+    ax.plot(x, y_tan1, color="#dc2626", ls="--", lw=2.0, label=rf"Tangent 1 ($m = {m:.2f}$)")
+    ax.plot(x, y_tan2, color="#2563eb", ls="--", lw=2.0, label=rf"Tangent 2 ($m = {m:.2f}$)")
 
     pts_x = [-2*t, -t, 0, t, 2*t]
     for px in pts_x:
@@ -365,7 +368,6 @@ def summary_graph_parallel(t: float = 0.8) -> bytes:
         ax.text((x1 + x2) / 2, -4.25, "1", fontsize=13, fontweight="bold", color="#15803d", ha="center")
 
     ax.set_xlim(-2.45, 2.45); ax.set_ylim(-4.8, 4.8)
-    # ★ 맷플롯립 내부 타이틀은 제거 (바깥쪽 HTML로 대체)
     ax.legend(loc="upper left", fontsize=11)
     ax.grid(True, alpha=0.2, ls="--")
     buf = io.BytesIO(); fig.savefig(buf, format="png", bbox_inches="tight")
