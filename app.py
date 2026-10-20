@@ -792,12 +792,12 @@ if mode == "👨‍🏫 교사(관제)":
                     st.image(summary_graph_parallel(t_val), use_container_width=True)
 
             with tab3:
-                st.markdown("### 🎯 [차시 예고] 오늘 발견한 비율 법칙으로 '수능 30번 킬러문제'를 1분 만에 풀어본다!")
+                st.markdown("### 🎯 [차시 예고] 오늘 발견한 비율 법칙으로 기출 킬러문제를 1분 만에 풀어본다!")
                 
-                # 가로 3분할 대신 세로로 하나씩 큼직하게 배치하여 가독성 극대화!
+                # 난이도 하
                 st.markdown("""
                 <div class="card lv1" style="margin-bottom: 12px; padding: 16px 20px;">
-                    <b style="font-size: 1.15rem; color: #c2410c;">🟢 [난이도 하] 기본 적용</b><br>
+                    <b style="font-size: 1.15rem; color: #c2410c;">🟢 [난이도 하] 기본 적용 (교과서 공략)</b><br>
                     <p style="font-size: 1.05rem; margin: 8px 0 12px 0; color: #1e293b;">
                         최고차항의 계수가 1인 삼차함수 f(x)가 x=1에서 극댓값 5를 갖고, x=3에서 극솟값을 갖는다.<br>
                         직선 y=5가 곡선 f(x)와 다시 만나는 점의 x좌표는?
@@ -808,30 +808,33 @@ if mode == "👨‍🏫 교사(관제)":
                 if st.button("정답 확인 (난이도 하)", key="ans_easy", use_container_width=True):
                     st.success("**정답: x = 4** (극대 1 ~ 극소 3 거리가 2이므로, 극소에서 2의 절반인 1만큼 더 간 3+1=4!)")
 
+                # 난이도 중 (방금 골라주신 평가원 20번 기출!)
                 st.markdown("""
                 <div class="card lv2" style="margin-bottom: 12px; padding: 16px 20px;">
-                    <b style="font-size: 1.15rem; color: #1e40af;">🔵 [난이도 중] 1 : √3 활용</b><br>
+                    <b style="font-size: 1.15rem; color: #1e40af;">🔵 [난이도 중] 평가원 4점 기출 (대칭성 활용)</b><br>
                     <p style="font-size: 1.05rem; margin: 8px 0 12px 0; color: #1e293b;">
-                        원점에 대하여 대칭인 삼차함수 f(x)가 x=2에서 극솟값을 갖는다.<br>
-                        방정식 f(x)=0의 가장 큰 실근을 α라 할 때, α²의 값은?
+                        삼차함수 f(x)가 다음 조건을 만족한다.<br>
+                        (가) x = -2에서 극댓값을 갖는다. &nbsp;&nbsp; (나) f'(-3) = f'(3)<br>
+                        이때 <보기> 중 옳은 것만을 고르면? (ㄱ. 도함수 최솟값은 x=0 / ㄴ. f(x)=f(2) 실근은 2개 / ㄷ. 접선 성질)
                     </p>
-                    <span style="color:#1e40af; font-weight:700; font-size: 0.95rem;">💡 극점과 x절편의 1 : √3 비율 즉시 적용!</span>
+                    <span style="color:#1e40af; font-weight:700; font-size: 0.95rem;">💡 f'(-3)=f'(3)을 보는 순간, 도함수의 대칭축(중점)이 x=0임을 알 수 있어 극솟점이 x=2로 즉시 튀어나옴!</span>
                 </div>
                 """, unsafe_allow_html=True)
                 if st.button("정답 확인 (난이도 중)", key="ans_mid", use_container_width=True):
-                    st.success("**정답: 12** (극점 x=2의 √3배이므로 α = 2√3 됨 ➔ α² = 12!)")
+                    st.success("**정답: ③ (ㄱ, ㄴ)** (대칭축이 x=0이므로 극댓점 -2의 상대방인 극솟점은 x=2! ㄱ과 ㄴ 모두 대칭성과 비율로 3초 만에 참 판정 가능!)")
 
+                # 난이도 상 (수능 30번 킬러)
                 st.markdown("""
                 <div class="card lv3" style="margin-bottom: 12px; padding: 16px 20px;">
-                    <b style="font-size: 1.15rem; color: #15803d;">🔴 [난이도 상] 실제 수능 30번 킬러</b><br>
+                    <b style="font-size: 1.15rem; color: #15803d;">🔴 [난이도 상] 수능 30번 킬러 맛보기</b><br>
                     <p style="font-size: 1.05rem; margin: 8px 0 12px 0; color: #1e293b;">
                         최고차항 계수가 양수인 삼차함수 f(x)가 f(0)=0, f'(1)=1 이고, 방정식 f(x) = ±x 의 실근 개수가 각각 2개이다. f(3)의 값은?
                     </p>
-                    <span style="color:#15803d; font-weight:700; font-size: 0.95rem;">💡 직선 y=x와의 접점 비율을 쓰면 연립 없이 뚝딱!</span>
+                    <span style="color:#15803d; font-weight:700; font-size: 0.95rem;">💡 직선 y=x와의 접점 비율(1:2)을 쓰면 복잡한 연립 방정식 없이 f(x)가 뚝딱 완성됨!</span>
                 </div>
                 """, unsafe_allow_html=True)
                 if st.button("정답 확인 (난이도 상)", key="ans_hard", use_container_width=True):
-                    st.success("**정답: f(3) = 27** (직선 y=x와 원점에서 만나고 x=1에서 접한다는 기하적 의미를 비율로 파악하면 f(x)식을 단번에 확정할 수 있습니다!)")
+                    st.success("**정답: f(3) = 27** (직선 y=x와 원점에서 만나고 x=1에서 접한다는 기하적 의미를 비율로 파악하면 킬러문제도 가볍게 격파!)")
             return
 
         progs = get_all_progress()
