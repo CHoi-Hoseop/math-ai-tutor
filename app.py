@@ -579,9 +579,12 @@ def is_troll_text(t):
     return re.search(r"ㅋ{4,}|ㅎ{4,}|롤\s*(하|할|해|게임|티어)", t) is not None
 
 # ----------------------------------------------------------------------------
-# 6. 접속 모드 선택 (조 선택 → 1~6조 / 참관교사 / 교사)
+# 6. 접속 모드 선택 (조 선택 → 1~6조 / 참관교사 / 교실 전광판 / 교사 리모컨)
 # ----------------------------------------------------------------------------
-OPTIONS = TEAMS + ["☕ 참관교사", "👨‍🏫 교사(관제)"]
+BOARD_MODE = "📺 교실 전광판"
+REMOTE_MODE = "📱 교사 관제(리모컨)"
+OPTIONS = TEAMS + ["☕ 참관교사", BOARD_MODE, REMOTE_MODE]
+
 if "mode" not in st.session_state:
     qp = st.query_params.get("team")           # 태블릿 고정용: ?team=3조
     st.session_state["mode"] = qp if qp in OPTIONS else None
@@ -596,19 +599,19 @@ def _leave_mode():
 with st.sidebar:
     st.markdown("## 📐 미적분Ⅰ 탐구 교실")
     if st.session_state["mode"] is None:
-        pick = st.selectbox("조 선택", OPTIONS, index=None, placeholder="👉 눌러서 조를 선택하세요")
+        pick = st.selectbox("모드 / 조 선택", OPTIONS, index=None, placeholder="👉 눌러서 선택하세요")
         if pick:
             st.session_state["mode"] = pick
             st.rerun()
     else:
         st.success(f"현재 접속: **{st.session_state['mode']}**")
-        st.button("🔁 다른 조로 바꾸기", use_container_width=True, on_click=_leave_mode)
+        st.button("🔁 다른 모드로 바꾸기", use_container_width=True, on_click=_leave_mode)
     st.markdown("---")
     st.metric(f"⏱️ {period_label}", f"{class_elapsed}분 경과", f"남은 시간 {max(0, CLASS_MIN - class_elapsed)}분", delta_color="off")
 
 mode = st.session_state["mode"]
 
-# ---- 랜딩(조 선택 전) : 휴대폰에서도 바로 누를 수 있게 본문에 큰 버튼 ----
+# ---- 랜딩(조 선택 전) : 휴대폰/태블릿에서도 바로 누를 수 있게 본문에 큰 버튼 ----
 if mode is None:
     st.title("📐 문화고 2학년 미적분Ⅰ — 삼차함수 그래프의 비율 탐구")
     st.markdown("#### 우리 모둠을 선택하면 탐구 교실이 열립니다.")
@@ -621,16 +624,20 @@ if mode is None:
                 st.rerun()
     st.markdown("</div>", unsafe_allow_html=True)
     st.markdown("")
-    c1, c2 = st.columns([2, 1])
+    c1, c2, c3 = st.columns([1.8, 1.1, 1.1])
     with c1:
         if st.button("☕ 참관 선생님으로 입장 (체험 + 실시간 중계)", use_container_width=True):
             st.session_state["mode"] = "☕ 참관교사"
             st.rerun()
     with c2:
-        if st.button("👨‍🏫 교사 관제", use_container_width=True):
-            st.session_state["mode"] = "👨‍🏫 교사(관제)"
+        if st.button("📺 교실 전광판 (전자칠판용)", use_container_width=True):
+            st.session_state["mode"] = BOARD_MODE
             st.rerun()
-    st.caption("※ 해당하는 조에 접속하도록 합니다.")
+    with c3:
+        if st.button("📱 교사 관제 (태블릿 리모컨)", use_container_width=True):
+            st.session_state["mode"] = REMOTE_MODE
+            st.rerun()
+    st.caption("※ 학생은 해당하는 조에 접속하고, 교실 앞 컴퓨터는 [📺 교실 전광판], 선생님 태블릿은 [📱 교사 관제]로 접속하세요.")
     st.stop()
 
 # ----------------------------------------------------------------------------
@@ -672,7 +679,6 @@ def mission_audio(step, fallback):
     else:
         st.info(f"🔊 {fallback}")
 
-# ★ 활동지·오디오 대본과 동일한 흐름 (화면에 보이는 것 / 종이에 쓰는 것 / 다음 단계 조건)
 MISSION_CARD = {
     1: ('lv1', "🔒 [1단계 미션] 극값은 어디서 생길까?",
         "① 화면은 아직 <b>빈 좌표평면</b>이에요. 모둠원과 상의해 AI에게 <b>극값이 생기는 위치를 찾는 방법</b>을 질문하세요.<br>"
@@ -690,60 +696,92 @@ MISSION_CARD = {
 }
 
 # ----------------------------------------------------------------------------
-# 8. 교사 관제
+# 8. 교실 전광판 (디스플레이 전용) & 교사 관제 (태블릿 리모컨)
 # ----------------------------------------------------------------------------
-if mode == "👨‍🏫 교사(관제)":
+if mode in (BOARD_MODE, REMOTE_MODE):
+    is_board = (mode == BOARD_MODE)   # True면 버튼 없는 교실 전광판, False면 태블릿 리모컨
     if not TEACHER_PIN:
-        st.title("👨‍🏫 교사용 실시간 관제")
-        st.error("⚠️ TEACHER_PIN 이 설정되지 않았습니다. Streamlit Cloud → 앱 메뉴(⋮) → Settings → Secrets 에 "
-                 "TEACHER_PIN = \"원하는비밀번호\" 를 추가하고 Reboot 하세요. (로컬이면 .streamlit/secrets.toml)")
+        st.title(f"{mode}")
+        st.error("⚠️ TEACHER_PIN 이 설정되지 않았습니다. Streamlit Cloud → Settings → Secrets 에 TEACHER_PIN 을 추가하세요.")
         st.stop()
     with st.sidebar:
-        pin = st.text_input("교사용 PIN", type="password")
+        pin = st.text_input("교사용 PIN 입력", type="password")
+        if is_board and pin == TEACHER_PIN:
+            st.caption("💡 전광판 세팅 완료! 이제 이 왼쪽 사이드바는 `[ < ]` 버튼을 눌러 닫고 **F11(전체화면)**을 눌러 두세요.")
     if pin != TEACHER_PIN:
-        st.title("👨‍🏫 교사용 실시간 관제")
+        st.title(f"{mode}")
         st.info("왼쪽 사이드바에 교사용 PIN을 입력하세요.") if not pin else st.error("PIN이 일치하지 않습니다.")
         st.stop()
 
-    h1, h2 = st.columns([2.4, 2])
-    with h1:
-        st.title("🖥️ 교단 관제 전광판 — 6개 조 실시간 탐구 현황")
-    with h2:
-        auto = st.toggle("🔄 8초 자동 갱신 (자동 힌트 포함)", value=True)
-        b1, b2, b3, b4, b5 = st.columns(5)
-        if b1.button("🔔 수업시작", use_container_width=True, help="지금을 0분으로 전 기기 타이머 동기화 + 조별 단계 타이머/힌트 초기화"):
-            set_state("class_start_time", ts())
-            for t in TEAMS:
-                update_progress(t, reset_timer=True, hint_lv1=0, hint_lv2=0, hint_lv3=0)
-            st.toast("전 기기 타이머 동시 시작!", icon="🔔"); st.rerun()
-        if b2.button("🔄 수동갱신", use_container_width=True):
-            st.rerun()
-        if b3.button("🧹 전체리셋", use_container_width=True, help="대화·진행도·수업시간 완전 초기화 (리허설 후 반드시!)"):
-            st.session_state["confirm_reset"] = True
-        if b4.button("⏹ 수업종료", use_container_width=True, help="타이머만 정지(기록 유지)"):
-            set_state("class_start_time", ""); st.rerun()
-        is_sum = st.session_state.get("show_summary_view", False)
-        if b5.button("🎓 최종정리" if not is_sum else "🔙 관제화면", type="primary" if not is_sum else "secondary", use_container_width=True, help="수업 마무리용 전체화면 그래프 칠판을 엽니다."):
-            st.session_state["show_summary_view"] = not is_sum
-            st.rerun()
-        if st.session_state.get("confirm_reset"):
-            st.warning("정말 모든 기록을 지울까요? 되돌릴 수 없습니다.")
-            cc1, cc2 = st.columns(2)
-            if cc1.button("✅ 예, 전체 초기화", type="primary", use_container_width=True):
-                reset_everything(); st.session_state["confirm_reset"] = False
-                st.toast("완전 초기화 완료", icon="🧹"); st.rerun()
-            if cc2.button("취소", use_container_width=True):
-                st.session_state["confirm_reset"] = False; st.rerun()
+    # ---- 상단 헤더: 전광판은 깔끔한 타이틀만, 리모컨은 조작 버튼 배치 ----
+    if is_board:
+        st.markdown("<h1 style='margin-bottom:4px;'>🖥️ 문화고 미적분Ⅰ — 실시간 탐구 전광판</h1>", unsafe_allow_html=True)
+    else:
+        h1, h2 = st.columns([1.8, 2.6])
+        with h1:
+            st.title("📱 교사 스마트 리모컨")
+        with h2:
+            b1, b2, b3, b4, b5 = st.columns(5)
+            if b1.button("🔔 수업시작", use_container_width=True, help="지금을 0분으로 전 기기 타이머 동기화"):
+                set_state("class_start_time", ts())
+                for t in TEAMS:
+                    update_progress(t, reset_timer=True, hint_lv1=0, hint_lv2=0, hint_lv3=0)
+                st.toast("전 기기 타이머 동시 시작!", icon="🔔"); st.rerun()
+            if b2.button("🔄 새로고침", use_container_width=True):
+                st.rerun()
+            if b3.button("🧹 전체리셋", use_container_width=True):
+                st.session_state["confirm_reset"] = True
+            if b4.button("⏹ 수업종료", use_container_width=True):
+                set_state("class_start_time", ""); st.rerun()
+            is_sum_top = (get_state("show_summary_view") == "1")
+            if b5.button("🎓 최종정리" if not is_sum_top else "🔙 관제화면", type="primary" if not is_sum_top else "secondary", use_container_width=True):
+                set_state("show_summary_view", "0" if is_sum_top else "1")
+                if not is_sum_top:
+                    set_state("sum_tab", "1")
+                st.rerun()
+            if st.session_state.get("confirm_reset"):
+                st.warning("정말 모든 기록을 지울까요? (전광판 화면도 즉시 초기화됩니다)")
+                cc1, cc2 = st.columns(2)
+                if cc1.button("✅ 예, 전체 초기화", type="primary", use_container_width=True):
+                    reset_everything(); st.session_state["confirm_reset"] = False
+                    st.toast("완전 초기화 완료", icon="🧹"); st.rerun()
+                if cc2.button("취소", use_container_width=True):
+                    st.session_state["confirm_reset"] = False; st.rerun()
 
+    # ★ 2초 주기로 DB 상태를 읽어와 전광판과 리모컨을 실시간 동기화!
+    @st.fragment(run_every="2s")
     def dashboard():
         label, elap, active = class_clock()
         rem = max(0, CLASS_MIN - elap)
-        st.markdown(f"""<div class="topbar"><div style="font-size:1.05rem;font-weight:800;">🏫 문화고 미적분Ⅰ 실시간 관제 · {label}</div>
+        mode_tag = "📺 교실 전광판 (실시간 자동 연동중)" if is_board else "📱 리모컨 모드 (버튼 클릭 시 전광판 즉시 변경)"
+        st.markdown(f"""<div class="topbar"><div style="font-size:1.05rem;font-weight:800;">🏫 {mode_tag} · {label}</div>
         <div style="display:flex;gap:10px;"><span class="pill" style="background:#1e3a8a;color:#93c5fd;">⏳ 경과 {elap}분 / {CLASS_MIN}분 · 남은 {rem}분</span>
         <span class="pill" style="background:#1e293b;color:#38bdf8;font-family:monospace;">⌚ {kst_now().strftime('%H:%M:%S')}</span></div></div>""", unsafe_allow_html=True)
         st.markdown(timeline_html(elap), unsafe_allow_html=True)
-        # ★ [🎓 최종정리] 버튼 활성화 시: 관제 카드 대신 전체화면 총정리 & 심화 & 차시예고 칠판 렌더링!
-        if st.session_state.get("show_summary_view", False):
+
+        # =====================================================================
+        # ★ [🎓 최종정리] 화면 (리모컨에서 탭/체크박스/슬라이더/정답 조작 → 전광판 실시간 반영!)
+        # =====================================================================
+        if get_state("show_summary_view") == "1":
+            cur_tab = get_state("sum_tab") or "1"
+            show_s3 = (get_state("sum_sqrt3") == "1")
+            try:
+                t_val = float(get_state("sum_tval") or "0.8")
+            except Exception:
+                t_val = 0.8
+
+            # [리모컨 전용] 전광판 화면 원격 컨트롤 박스
+            if not is_board:
+                st.markdown('<div class="card" style="background:#eff6ff; border:2px solid #2563eb; padding:12px 16px;">'
+                            '<b>📱 [전광판 원격 리모컨]</b> 아래 버튼을 누르면 교실 앞 전광판의 탭과 화면이 실시간으로 바뀝니다!</div>', unsafe_allow_html=True)
+                rc1, rc2, rc3 = st.columns(3)
+                if rc1.button("📐 1. 핵심 비율 (1:1:1:1 & 1:√3)", type="primary" if cur_tab == "1" else "secondary", use_container_width=True):
+                    set_state("sum_tab", "1"); st.rerun()
+                if rc2.button("🚀 2. 심화 확장 (기울어진 평행 접선)", type="primary" if cur_tab == "2" else "secondary", use_container_width=True):
+                    set_state("sum_tab", "2"); st.rerun()
+                if rc3.button("📝 3. 다음 시간 예고 (기출 하·중·상)", type="primary" if cur_tab == "3" else "secondary", use_container_width=True):
+                    set_state("sum_tab", "3"); st.rerun()
+
             st.markdown("""
             <div class="card lv3" style="padding:18px 22px; margin-bottom:14px;">
                 <h2 style="margin:0; color:#14532d;">🎓 [오늘의 탐구 총정리] 삼차함수 그래프 속 숨은 비율의 비밀</h2>
@@ -753,17 +791,11 @@ if mode == "👨‍🏫 교사(관제)":
             </div>
             """, unsafe_allow_html=True)
 
-            tab1, tab2, tab3 = st.tabs([
-                "📐 1. 핵심 비율 (1 : 1 : 1 : 1 & 1 : √3)",
-                "🚀 2. 심화 확장 (기울어진 평행 접선도 1 : 1 : 1 : 1)",
-                "📝 3. 다음 시간 예고 (실전 문제 맛보기 하·중·상)"
-            ])
-
-            with tab1:
+            # ---- 탭 1 : 핵심 비율 ----
+            if cur_tab == "1":
                 c_left, c_right = st.columns([1.55, 1])
                 with c_right:
                     st.markdown("### 💡 오늘 우리가 증명한 법칙")
-                    # 글자 크기를 1.25rem으로 키우고 줄 간격(line-height)을 널찍하게 조절
                     st.markdown("""
                     <div style="font-size: 1.25rem; line-height: 1.7; color: #1e293b;">
                         * <b>극댓점의 수평선 (y = 2):</b><br>&nbsp;&nbsp; (x + 1)²(x - 2) = 0 &nbsp;⇒&nbsp; x = -1(중근), 2<br>
@@ -773,13 +805,13 @@ if mode == "👨‍🏫 교사(관제)":
                     </div>
                     """, unsafe_allow_html=True)
                     st.markdown("---")
-                    
-                    # 체크박스 글씨도 잘 보이도록 스타일 및 폰트 크기 확대
-                    show_s3 = st.checkbox("🌟 [심화] x축과 만나는 교점 (1 : √3 비율) 함께 표시하기", value=False)
+                    if not is_board:
+                        if st.button("🌟 [전광판 조작] 1 : √3 심화 비율 " + ("숨기기" if show_s3 else "전광판에 띄우기"), type="primary" if not show_s3 else "secondary", use_container_width=True):
+                            set_state("sum_sqrt3", "0" if show_s3 else "1"); st.rerun()
                     if show_s3:
                         st.markdown("""
                         <div class="card lv3" style="font-size: 1.15rem; line-height: 1.6; padding: 14px 16px; margin-top: 10px;">
-                            <b>[심화 비율 1 : √3]</b><br>
+                            <b>🌟 [심화 비율 1 : √3]</b><br>
                             x³ - 3x = x(x² - 3) = 0 &nbsp;⇒&nbsp; x = 0, ±√3<br>
                             대칭점(0)에서 <b>극점(1)까지의 거리</b>와 <b>x절편(√3)까지의 거리</b> 비는 항상 <b>1 : √3</b> 입니다!
                         </div>
@@ -787,7 +819,8 @@ if mode == "👨‍🏫 교사(관제)":
                 with c_left:
                     st.image(summary_graph_main(show_s3), use_container_width=True)
 
-            with tab2:
+            # ---- 탭 2 : 심화 확장 (평행 접선) ----
+            elif cur_tab == "2":
                 c_p1, c_p2 = st.columns([1.55, 1])
                 with c_p2:
                     st.markdown("### 🤔 수평선이 아니라 '기울어진 접선'이면 어떨까?")
@@ -798,10 +831,11 @@ if mode == "👨‍🏫 교사(관제)":
                         <b>[교점 ➔ 접점 ➔ 중점 ➔ 접점 ➔ 교점]</b>의 x좌표 간격은 언제나 <b>1 : 1 : 1 : 1</b>이 됩니다!
                     </div>
                     """, unsafe_allow_html=True)
-                    
                     st.markdown("<br>", unsafe_allow_html=True)
-                    t_val = st.slider("👇 슬라이더를 움직여 접점의 위치(기울기)를 바꿔보세요!", min_value=0.5, max_value=1.15, value=0.8, step=0.05)
-                    
+                    if not is_board:
+                        new_t = st.slider("👇 [전광판 연동] 슬라이더를 움직이면 전광판 그래프가 바뀝니다!", min_value=0.5, max_value=1.15, value=t_val, step=0.05)
+                        if abs(new_t - t_val) > 1e-4:
+                            set_state("sum_tval", f"{new_t:.2f}"); st.rerun()
                     st.markdown(f"""
                     <div class="card lv2" style="font-size: 1.15rem; line-height: 1.6; padding: 12px 16px; margin-top: 10px;">
                         현재 두 접점의 x좌표: <b>-{t_val:.2f}, &nbsp; +{t_val:.2f}</b><br>
@@ -810,7 +844,6 @@ if mode == "👨‍🏫 교사(관제)":
                     </div>
                     """, unsafe_allow_html=True)
                 with c_p1:
-                    # ★ 그래프 바로 위에 큼직하고 세련된 [한글 타이틀 카드]를 띄움!
                     m_val = 3 * t_val**2 - 3
                     st.markdown(f"""
                     <div style="background: #0f172a; color: #f8fafc; padding: 10px 16px; border-radius: 8px; text-align: center; font-size: 1.1rem; font-weight: 800; margin-bottom: 8px;">
@@ -819,12 +852,16 @@ if mode == "👨‍🏫 교사(관제)":
                     """, unsafe_allow_html=True)
                     st.image(summary_graph_parallel(t_val), use_container_width=True)
 
-            with tab3:
+            # ---- 탭 3 : 차시 예고 (하·중·상 문제 & 원격 정답 공개) ----
+            else:
                 st.markdown("### 🎯 [차시 예고] 오늘 발견한 비율 법칙으로 기출 문제를 1분 만에 풀어본다!")
-                
-                # [난이도 하] 카드 (글자 크기 1.3rem으로 확대)
+                ans1 = (get_state("sum_ans_easy") == "1")
+                ans2 = (get_state("sum_ans_mid") == "1")
+                ans3 = (get_state("sum_ans_hard") == "1")
+
+                # [난이도 하]
                 st.markdown("""
-                <div class="card lv1" style="margin-bottom: 16px; padding: 20px 24px;">
+                <div class="card lv1" style="margin-bottom: 12px; padding: 20px 24px;">
                     <b style="font-size: 1.35rem; color: #c2410c;">🟢 [난이도 하] 기본 적용 (교과서 공략)</b><br>
                     <p style="font-size: 1.25rem; margin: 12px 0 14px 0; color: #1e293b; line-height: 1.6;">
                         최고차항의 계수가 1인 삼차함수 f(x)가 x=1에서 극댓값 5를 갖고, x=3에서 극솟값을 갖는다.<br>
@@ -833,12 +870,15 @@ if mode == "👨‍🏫 교사(관제)":
                     <span style="color:#c2410c; font-weight:700; font-size: 1.1rem;">💡 공식 연산 없이 비율(2:1)로 암산 가능!</span>
                 </div>
                 """, unsafe_allow_html=True)
-                if st.button("정답 확인 (난이도 하)", key="ans_easy", use_container_width=True):
-                    st.success("**정답: x = 4** (극대 1 ~ 극소 3 거리가 2이므로, 극소에서 2의 절반인 1만큼 더 간 3+1=4!)")
+                if not is_board:
+                    if st.button("🟢 [난이도 하] 정답 전광판에 " + ("숨기기" if ans1 else "공개하기"), key="btn_ans1", use_container_width=True):
+                        set_state("sum_ans_easy", "0" if ans1 else "1"); st.rerun()
+                if ans1:
+                    st.success("🎉 **정답: x = 4** (극대 1 ~ 극소 3 거리가 2이므로, 극소에서 2의 절반인 1만큼 더 간 3+1=4!)")
 
-                # [난이도 중] 카드 (글자 크기 1.3rem 및 보기 박스 폰트 확대)
+                # [난이도 중]
                 st.markdown("""
-                <div class="card lv2" style="margin-bottom: 16px; padding: 20px 24px;">
+                <div class="card lv2" style="margin-bottom: 12px; padding: 20px 24px;">
                     <b style="font-size: 1.35rem; color: #1e40af;">🔵 [난이도 중] 평가원 4점 기출 (대칭성 활용)</b><br>
                     <p style="font-size: 1.25rem; margin: 12px 0 12px 0; color: #1e293b; line-height: 1.6;">
                         삼차함수 f(x)가 다음 조건을 만족한다.<br>
@@ -853,12 +893,15 @@ if mode == "👨‍🏫 교사(관제)":
                     <span style="color:#1e40af; font-weight:700; font-size: 1.1rem;">💡 f'(-3)=f'(3)을 통해 대칭축이 x=0임을 알면, 극솟점이 x=2가 되고 ㄱ, ㄴ, ㄷ 모두 연립 없이 비율로 3초 만에 해결 가능!</span>
                 </div>
                 """, unsafe_allow_html=True)
-                if st.button("정답 확인 (난이도 중)", key="ans_mid", use_container_width=True):
-                    st.success("**정답: ⑤ (ㄱ, ㄴ, ㄷ)** (대칭점인 x=0을 기준으로 극대가 -2, 극소가 2이므로 ㄱ, ㄴ, ㄷ 모두 대칭성과 비율 성질에 의해 완벽하게 참이 됩니다!)")
+                if not is_board:
+                    if st.button("🔵 [난이도 중] 정답 전광판에 " + ("숨기기" if ans2 else "공개하기"), key="btn_ans2", use_container_width=True):
+                        set_state("sum_ans_mid", "0" if ans2 else "1"); st.rerun()
+                if ans2:
+                    st.success("🎉 **정답: ⑤ (ㄱ, ㄴ, ㄷ)** (대칭점인 x=0을 기준으로 극대가 -2, 극소가 2이므로 ㄱ, ㄴ, ㄷ 모두 대칭성과 비율 성질에 의해 완벽하게 참이 됩니다!)")
 
-                # [난이도 상] 카드 (글자 크기 1.3rem으로 확대)
+                # [난이도 상]
                 st.markdown("""
-                <div class="card lv3" style="margin-bottom: 16px; padding: 20px 24px;">
+                <div class="card lv3" style="margin-bottom: 12px; padding: 20px 24px;">
                     <b style="font-size: 1.35rem; color: #15803d;">🔴 [난이도 상] 수능 30번 맛보기</b><br>
                     <p style="font-size: 1.25rem; margin: 12px 0 14px 0; color: #1e293b; line-height: 1.6;">
                         최고차항 계수가 양수인 삼차함수 f(x)가 f(0)=0, f'(1)=1 이고, 방정식 f(x) = ±x 의 실근 개수가 각각 2개이다. f(3)의 값은?
@@ -866,39 +909,48 @@ if mode == "👨‍🏫 교사(관제)":
                     <span style="color:#15803d; font-weight:700; font-size: 1.1rem;">💡 직선 y=x와의 접점 비율(1:2)을 쓰면 복잡한 연립 방정식 없이 f(x)가 뚝딱 완성됨!</span>
                 </div>
                 """, unsafe_allow_html=True)
-                if st.button("정답 확인 (난이도 상)", key="ans_hard", use_container_width=True):
-                    st.success("**정답: f(3) = 27** (직선 y=x와 원점에서 만나고 x=1에서 접한다는 기하적 의미를 비율로 파악하면 30번 문제도 가볍게 격파!)")
+                if not is_board:
+                    if st.button("🔴 [난이도 상] 정답 전광판에 " + ("숨기기" if ans3 else "공개하기"), key="btn_ans3", use_container_width=True):
+                        set_state("sum_ans_hard", "0" if ans3 else "1"); st.rerun()
+                if ans3:
+                    st.success("🎉 **정답: f(3) = 27** (직선 y=x와 원점에서 만나고 x=1에서 접한다는 기하적 의미를 비율로 파악하면 30번 문제도 가볍게 격파!)")
             return
 
+        # =====================================================================
+        # ★ 일반 관제 화면 (6개 조 실시간 현황 & 확대 보기)
+        # =====================================================================
         progs = get_all_progress()
-        if active:   # 교사 화면이 열려 있으면 학생 태블릿과 무관하게 시간 경과 힌트를 자동 발송
+        if active:
             if any([maybe_send_hints(t, progs[t], True) for t in TEAMS]):
                 progs = get_all_progress()
         all_logs = get_logs()
         now = kst_now()
 
-        # ★ 새로운 비수학/딴청 질문이 들어오면 [몇 조]인지 딱 집어서 교실 전광판 음성 방송 재생!
+        # ★ 딴청 질문 공개 방송은 교실 스피커가 연결된 [전광판(is_board)]에서만 울리도록 깔끔하게 처리!
         troll_rows = all_logs[all_logs["is_troll"].fillna(0).astype(int) == 1] if not all_logs.empty else pd.DataFrame()
         total_trolls = len(troll_rows)
         prev_trolls = st.session_state.get("prev_troll_cnt", total_trolls)
         if total_trolls > prev_trolls and not troll_rows.empty:
-            culprit_team = str(troll_rows.iloc[-1]["team"])        # 방금 딴청 친 조 (예: "3조")
-            team_num = re.sub(r"[^0-9]", "", culprit_team)         # 숫자만 추출 (예: "3")
-            st.toast(f"🚨 {culprit_team}에서 딴청 질문이 감지되어 공개 방송을 재생합니다!", icon="🔊")
-            team_mp3 = f"audio/troll_{team_num}.mp3"
-            if os.path.exists(team_mp3):
-                st.audio(team_mp3, format="audio/mp3", autoplay=True)
-            elif os.path.exists("audio/troll.mp3"):
-                st.audio("audio/troll.mp3", format="audio/mp3", autoplay=True)
+            culprit_team = str(troll_rows.iloc[-1]["team"])
+            team_num = re.sub(r"[^0-9]", "", culprit_team)
+            st.toast(f"🚨 {culprit_team}에서 딴청 질문이 감지되었습니다!", icon="🔊")
+            if is_board:
+                team_mp3 = f"audio/troll_{team_num}.mp3"
+                if os.path.exists(team_mp3):
+                    st.audio(team_mp3, format="audio/mp3", autoplay=True)
+                elif os.path.exists("audio/troll.mp3"):
+                    st.audio("audio/troll.mp3", format="audio/mp3", autoplay=True)
         st.session_state["prev_troll_cnt"] = total_trolls
 
-        z = st.session_state.get("zoom_team")
-        if z:
+        # ★ 특정 조 확대 보기도 DB("zoom_team")로 공유 → 리모컨에서 누르면 전광판이 즉시 확대됨!
+        z = get_state("zoom_team")
+        if z in TEAMS:
             zl = all_logs[all_logs["team"] == z] if not all_logs.empty else all_logs
             zc1, zc2 = st.columns([3, 1])
             zc1.markdown(f"### 🔍 {z} 전체 문답 확대 보기 <span style='font-size:0.95rem;color:#64748b'>(총 {len(zl[zl['kind']=='chat']) if not zl.empty else 0}회)</span>", unsafe_allow_html=True)
-            if zc2.button("✖ 확대 닫기", type="primary", use_container_width=True, key="zoom_close"):
-                st.session_state["zoom_team"] = None; st.rerun()
+            if not is_board:
+                if zc2.button("✖ 확대 닫기 (전광판 복귀)", type="primary", use_container_width=True, key="zoom_close"):
+                    set_state("zoom_team", ""); st.rerun()
             with st.container(height=520, border=True):
                 if zl.empty:
                     st.info("아직 질문이 없습니다.")
@@ -929,20 +981,25 @@ if mode == "👨‍🏫 교사(관제)":
                 st.markdown(f"""<div style="display:flex;justify-content:space-between;align-items:center;margin:4px 0 6px 0;">
                 <div><span style="font-size:1.25rem;font-weight:800;">{t}</span>{level_badge(p)}</div>
                 <div>{sb}<span class="badge b-time">단계 {stage_elapsed_min(p)}분째</span></div></div>""", unsafe_allow_html=True)
-                c1, c2, c3 = st.columns(3)
-                if c1.button("🔍 크게", key=f"zoom_{t}", use_container_width=True):
-                    st.session_state["zoom_team"] = t; st.rerun()
-                lv = p["level"]
-                hint_sent = p.get(f"hint_lv{lv}", 0)
-                c2.button(f"📨 힌트{min(hint_sent + 1, 2)}차", key=f"hint_{t}", use_container_width=True, disabled=(hint_sent >= 2),
-                          on_click=_manual_hint_cb, args=(t,), help="이 조 채팅창에 다음 단계 힌트를 즉시 보냅니다. (시간이 지나면 자동으로도 나갑니다)")
-                if lv < 3:
-                    if c3.button(f"⚡ LV{lv + 1} 오픈", key=f"force_{t}", use_container_width=True, help="교사 직권으로 다음 단계를 바로 열어줍니다."):
-                        update_progress(t, level=lv + 1, step1_approved=1, step2_approved=(1 if lv + 1 == 3 else 0), reset_timer=True)
-                        save_log(t, "teacher", "system", "[교사 강제 오픈]", f"LV{lv + 1} 강제 개방", 0, lv + 1); st.rerun()
-                else:
-                    c3.button("🏆 완료", key=f"done_{t}", disabled=True, use_container_width=True)
-                with st.container(height=200):
+                
+                # ★ 조작 버튼(크게/힌트/강제오픈)은 태블릿 리모컨에만 표시! 전광판은 버튼 없이 깔끔하게!
+                if not is_board:
+                    c1, c2, c3 = st.columns(3)
+                    is_zoomed = (z == t)
+                    if c1.button("✖ 닫기" if is_zoomed else "🔍 크게", key=f"zoom_{t}", use_container_width=True):
+                        set_state("zoom_team", "" if is_zoomed else t); st.rerun()
+                    lv = p["level"]
+                    hint_sent = p.get(f"hint_lv{lv}", 0)
+                    c2.button(f"📨 힌트{min(hint_sent + 1, 2)}차", key=f"hint_{t}", use_container_width=True, disabled=(hint_sent >= 2),
+                              on_click=_manual_hint_cb, args=(t,))
+                    if lv < 3:
+                        if c3.button(f"⚡ LV{lv + 1} 오픈", key=f"force_{t}", use_container_width=True):
+                            update_progress(t, level=lv + 1, step1_approved=1, step2_approved=(1 if lv + 1 == 3 else 0), reset_timer=True)
+                            save_log(t, "teacher", "system", "[교사 강제 오픈]", f"LV{lv + 1} 강제 개방", 0, lv + 1); st.rerun()
+                    else:
+                        c3.button("🏆 완료", key=f"done_{t}", disabled=True, use_container_width=True)
+
+                with st.container(height=210 if is_board else 190):
                     if tl.empty:
                         st.markdown('<div style="color:#94a3b8;text-align:center;padding-top:60px;font-size:0.9rem;">아직 질문이 없습니다.<br>발문을 독려하세요.</div>', unsafe_allow_html=True)
                     else:
@@ -983,20 +1040,14 @@ if mode == "👨‍🏫 교사(관제)":
                     st.markdown(f'<div class="card" style="border-left:5px solid #f97316;background:#fff7ed;"><div style="font-size:0.76rem;color:#9a3412;font-weight:700;">{esc(r["client"])} · {esc(str(r["ts"])[11:19])}</div>'
                                 f'<div style="font-weight:800;margin:3px 0;">Q. {esc(r["question"], 90)}</div><div style="font-size:0.85rem;color:#7c2d12;">AI: {esc(r["answer"], 100)}</div></div>', unsafe_allow_html=True)
 
-        st.markdown("---")
-        d1, d2 = st.columns(2)
-        d1.download_button("⬇️ 전체 대화 로그 CSV", all_logs.to_csv(index=False).encode("utf-8-sig"), f"logs_{kst_now():%Y%m%d_%H%M}.csv", "text/csv", use_container_width=True)
-        d2.download_button("⬇️ 조별 진행도 CSV", pd.DataFrame(list(progs.values())).to_csv(index=False).encode("utf-8-sig"), f"progress_{kst_now():%Y%m%d_%H%M}.csv", "text/csv", use_container_width=True)
+        if not is_board:
+            st.markdown("---")
+            d1, d2 = st.columns(2)
+            d1.download_button("⬇️ 전체 대화 로그 CSV", all_logs.to_csv(index=False).encode("utf-8-sig"), f"logs_{kst_now():%Y%m%d_%H%M}.csv", "text/csv", use_container_width=True)
+            d2.download_button("⬇️ 조별 진행도 CSV", pd.DataFrame(list(progs.values())).to_csv(index=False).encode("utf-8-sig"), f"progress_{kst_now():%Y%m%d_%H%M}.csv", "text/csv", use_container_width=True)
 
-    if auto:
-        @st.fragment(run_every="8s")
-        def _auto():
-            dashboard()
-        _auto()
-    else:
-        dashboard()
+    dashboard()
     st.stop()
-
 # ----------------------------------------------------------------------------
 # 9. 학생(1~6조) & 참관교사 화면
 # ----------------------------------------------------------------------------
