@@ -813,7 +813,7 @@ if mode == "👨‍🏫 교사(관제)":
                     st.image(summary_graph_parallel(t_val), use_container_width=True)
 
             with tab3:
-                st.markdown("### 🎯 [차시 예고] 오늘 발견한 비율 법칙으로 기출 킬러문제를 1분 만에 풀어본다!")
+                st.markdown("### 🎯 [차시 예고] 오늘 발견한 비율 법칙으로 기출 문제를 1분 만에 풀어본다!")
                 
                 # [난이도 하] 카드 (글자 크기 1.3rem으로 확대)
                 st.markdown("""
@@ -852,7 +852,7 @@ if mode == "👨‍🏫 교사(관제)":
                 # [난이도 상] 카드 (글자 크기 1.3rem으로 확대)
                 st.markdown("""
                 <div class="card lv3" style="margin-bottom: 16px; padding: 20px 24px;">
-                    <b style="font-size: 1.35rem; color: #15803d;">🔴 [난이도 상] 수능 30번 킬러 맛보기</b><br>
+                    <b style="font-size: 1.35rem; color: #15803d;">🔴 [난이도 상] 수능 30번 맛보기</b><br>
                     <p style="font-size: 1.25rem; margin: 12px 0 14px 0; color: #1e293b; line-height: 1.6;">
                         최고차항 계수가 양수인 삼차함수 f(x)가 f(0)=0, f'(1)=1 이고, 방정식 f(x) = ±x 의 실근 개수가 각각 2개이다. f(3)의 값은?
                     </p>
@@ -860,7 +860,7 @@ if mode == "👨‍🏫 교사(관제)":
                 </div>
                 """, unsafe_allow_html=True)
                 if st.button("정답 확인 (난이도 상)", key="ans_hard", use_container_width=True):
-                    st.success("**정답: f(3) = 27** (직선 y=x와 원점에서 만나고 x=1에서 접한다는 기하적 의미를 비율로 파악하면 킬러문제도 가볍게 격파!)")
+                    st.success("**정답: f(3) = 27** (직선 y=x와 원점에서 만나고 x=1에서 접한다는 기하적 의미를 비율로 파악하면 30번 문제도 가볍게 격파!)")
             return
 
         progs = get_all_progress()
