@@ -1290,7 +1290,14 @@ with col_c:
         if st.session_state.pop("play_troll_audio", False):
             t_mp3 = "audio/troll_tablet.mp3" if os.path.exists("audio/troll_tablet.mp3") else "audio/troll.mp3"
             if os.path.exists(t_mp3):
-                st.audio(t_mp3, format="audio/mp3", autoplay=True)
+                import base64
+                with open(t_mp3, "rb") as f:
+                    b64_audio = base64.b64encode(f.read()).decode("utf-8")
+                components.html(f"""
+                    <audio autoplay="true">
+                        <source src="data:audio/mp3;base64,{b64_audio}" type="audio/mp3">
+                    </audio>
+                """, height=0)
         box = st.container(height=400)
         with box:
             if hist_df.empty:
