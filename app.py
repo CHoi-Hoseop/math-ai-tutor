@@ -290,6 +290,88 @@ GRAPH_CAPTION = {
     2: "✅ 1단계에서 찾은 <b>극댓점 (−1, 2)</b>·<b>극솟점 (1, −2)</b>가 표시됐어요. 증감표와 맞는지 확인하고 <b>활동지 2단계 좌표평면에 옮겨 그리세요.</b> 수평선과 교점은 화면에 없으니 AI와 찾아 직접 작도!",
     3: "💡 2단계에서 찾은 결과와 비교해 보세요. 수직 점선 <b>x = −2, −1, 0, 1, 2</b> 의 간격이 모두 같고, 극댓점 쪽(<b>y = 2</b>)과 극솟점 쪽(<b>y = −2</b>) 모두 같은 비율이 나타납니다.",
 }
+# ★ [교사 전자칠판용] 수업 마무리 전체화면 그래프 2종 (1:1:1:1 & 1:√3 / 기울어진 평행 접선)
+@st.cache_data(show_spinner=False)
+def summary_graph_main(show_sqrt3: bool = False) -> bytes:
+    fig = Figure(figsize=(11, 5.4), dpi=130)
+    ax = fig.subplots()
+    x = np.linspace(-2.45, 2.45, 500)
+    y = x**3 - 3*x
+    ax.spines["left"].set_position("zero"); ax.spines["bottom"].set_position("zero")
+    ax.spines["right"].set_color("none"); ax.spines["top"].set_color("none")
+    ax.plot(x, y, color="#1e40af", lw=3.2, label=r"$f(x)=x^3-3x$")
+
+    # 수평 접선 y=2, y=-2 및 5개 핵심 점 (-2, -1, 0, 1, 2)
+    ax.axhline(2, color="#dc2626", alpha=0.65, ls="--", lw=1.8, label=r"$y=2$")
+    ax.axhline(-2, color="#2563eb", alpha=0.65, ls="--", lw=1.8, label=r"$y=-2$")
+    pts_x = [-2, -1, 0, 1, 2]
+    pts_y = [-2, 2, 0, -2, 2]
+    colors = ["#2563eb", "#dc2626", "#7c3aed", "#2563eb", "#dc2626"]
+    for px, py, c in zip(pts_x, pts_y, colors):
+        ax.axvline(px, color="#64748b", alpha=0.55, ls=":", lw=1.6)
+        ax.plot([px], [py], "o", ms=10, color=c, zorder=5)
+
+    # 1 : 1 : 1 : 1 양방향 화살표 및 비율 텍스트 표시
+    for x1, x2 in [(-2, -1), (-1, 0), (0, 1), (1, 2)]:
+        ax.annotate("", xy=(x2, -3.6), xytext=(x1, -3.6),
+                    arrowprops=dict(arrowstyle="<->", color="#15803d", lw=2.2))
+        ax.text((x1 + x2) / 2, -4.15, "1", fontsize=14, fontweight="bold", color="#15803d", ha="center")
+
+    if show_sqrt3:
+        s3 = np.sqrt(3)
+        ax.plot([-s3, 0, s3], [0, 0, 0], "D", ms=9, color="#d97706", zorder=6, label=r"$x=\pm\sqrt{3}$")
+        ax.annotate("", xy=(1, 3.3), xytext=(0, 3.3), arrowprops=dict(arrowstyle="<->", color="#b45309", lw=2.0))
+        ax.text(0.5, 3.65, r"$1$", fontsize=13, fontweight="bold", color="#b45309", ha="center")
+        ax.annotate("", xy=(s3, 2.5), xytext=(0, 2.5), arrowprops=dict(arrowstyle="<->", color="#d97706", lw=2.2))
+        ax.text(s3 / 2, 2.85, r"$\sqrt{3}$", fontsize=13, fontweight="bold", color="#d97706", ha="center")
+        ax.axvline(s3, color="#d97706", alpha=0.5, ls="-.", lw=1.5)
+        ax.axvline(-s3, color="#d97706", alpha=0.5, ls="-.", lw=1.5)
+
+    ax.set_xticks([-2, -1, 0, 1, 2])
+    ax.set_xticklabels(["-2", "-1", "O", "1", "2"], fontsize=12, fontweight="bold")
+    ax.set_xlim(-2.45, 2.45); ax.set_ylim(-4.7, 4.5)
+    ax.set_title(r"$y = x^3 - 3x \quad \Longrightarrow \quad [\,1 : 1 : 1 : 1\,]$" + (r"$\quad & \quad [\,1 : \sqrt{3}\,]$" if show_sqrt3 else ""),
+                 fontsize=16, fontweight="bold", color="#0f172a", pad=12)
+    ax.legend(loc="upper left", fontsize=11)
+    ax.grid(True, alpha=0.2, ls="--")
+    buf = io.BytesIO(); fig.savefig(buf, format="png", bbox_inches="tight")
+    return buf.getvalue()
+
+@st.cache_data(show_spinner=False)
+def summary_graph_parallel(t: float = 0.8) -> bytes:
+    """접점 x = -t, +t 에서의 평행한 두 접선과 교점 (-2t, -t, 0, t, 2t -> 1:1:1:1)"""
+    fig = Figure(figsize=(11, 5.2), dpi=130)
+    ax = fig.subplots()
+    x = np.linspace(-2.45, 2.45, 500)
+    y = x**3 - 3*x
+    m = 3 * t**2 - 3
+    y_tan1 = m * (x + t) + (-t**3 + 3*t)   # x = -t 에서의 접선 (x = 2t 에서 다시 만남)
+    y_tan2 = m * (x - t) + (t**3 - 3*t)    # x = +t 에서의 접선 (x = -2t 에서 다시 만남)
+
+    ax.spines["left"].set_position("zero"); ax.spines["bottom"].set_position("zero")
+    ax.spines["right"].set_color("none"); ax.spines["top"].set_color("none")
+    ax.plot(x, y, color="#1e40af", lw=3.2, label=r"$f(x)=x^3-3x$")
+    ax.plot(x, y_tan1, color="#dc2626", ls="--", lw=2.0, label=rf"Tangent at $x=-{t:.1f}$")
+    ax.plot(x, y_tan2, color="#2563eb", ls="--", lw=2.0, label=rf"Tangent at $x=+{t:.1f}$")
+
+    pts_x = [-2*t, -t, 0, t, 2*t]
+    for px in pts_x:
+        py = px**3 - 3*px
+        ax.axvline(px, color="#64748b", alpha=0.6, ls=":", lw=1.6)
+        ax.plot([px], [py], "o", ms=9, color="#15803d", zorder=5)
+
+    for x1, x2 in [(-2*t, -t), (-t, 0), (0, t), (t, 2*t)]:
+        ax.annotate("", xy=(x2, -3.7), xytext=(x1, -3.7),
+                    arrowprops=dict(arrowstyle="<->", color="#15803d", lw=2.2))
+        ax.text((x1 + x2) / 2, -4.25, "1", fontsize=13, fontweight="bold", color="#15803d", ha="center")
+
+    ax.set_xlim(-2.45, 2.45); ax.set_ylim(-4.8, 4.8)
+    ax.set_title(rf"Parallel Tangents (slope $m = {m:.2f}$) $\quad \Longrightarrow \quad [\,1 : 1 : 1 : 1\,]$",
+                 fontsize=15, fontweight="bold", color="#0f172a", pad=12)
+    ax.legend(loc="upper left", fontsize=11)
+    ax.grid(True, alpha=0.2, ls="--")
+    buf = io.BytesIO(); fig.savefig(buf, format="png", bbox_inches="tight")
+    return buf.getvalue()
 
 # ----------------------------------------------------------------------------
 # 4. Gemini (새 SDK, 실제 호출 실패 시에만 다음 모델로 / 429는 짧게 재시도 / 최후엔 캔 응답)
@@ -368,8 +450,20 @@ def build_system_prompt(level, stage_min, turns, label):
 학생 화면: LV1에는 빈 좌표평면만, LV2에는 곡선과 극댓점·극솟점만 보이고(수평선·교점은 안 보임), LV3에서 수평선·교점·수직 점선이 열린다.
 학생은 종이 활동지에 1단계(f'(x), 증감표, 극점 좌표) → 2단계(극점 옮겨 그리기, ①수평선 식 ②방정식 ③접할 때 근의 특징 ④교점, 간격 측정) → 3단계(자유 풀이 인수분해, 최종 보고, 심화)를 쓴다.
 
-[장난·비수학 방어] 잡담, 급식, 게임, 욕설, 연애, 의미 없는 글자 반복 등 수학과 무관한 입력에는 짧고 단호하게
-"지금은 수학 탐구 시간이야. 이 대화는 선생님 관제 화면에 기록돼. 활동지 질문으로 돌아오자! [TROLL_DETECTED]" 라고만 답해.
+[스페셜 이스터에그 — 최호섭 선생님 & 정체성 질문 (이건 장난 아님, 태그 붙이지 마!)]
+- 학생이 "너 누가 만들었어?", "제작자가 누구야?", "어떻게 만들어졌어?" 등을 물으면:
+  "나? '최호섭 선생님'께서 너희 수업을 위해 쉬는 시간마다 짬을 내어 한 땀 한 땀 직접 코딩해서 탄생시켜 주셨지! 선생님의 정성에 보답하기 위해서라도 오늘 미션 끝까지 멋지게 풀어보자!" 처럼 자부심 넘치게 답해.
+- 학생이 "최호섭 선생님 잘생겼어?", "선생님 멋있어?", "선생님 어때?" 등을 물으면:
+  "당연하지! 삼차함수 그래프의 완벽한 대칭성만큼이나 훈훈하고 멋지시지! (방금 네가 한 말이 교실 앞 전광판에 그대로 뜨고 있으니 선생님께서 아주 흐뭇해하시겠는걸? ㅎㅎ) 자, 이제 훈훈한 얘기는 여기까지 하고 탐구로 돌아가 볼까?" 처럼 재치 있게 답해.
+- 학생이 "그냥 정답 알려줘", "답이 뭐야?" 하고 떼를 쓰면:
+  "어허~ 최호섭 선생님께서 내 입에 자물쇠를 단단히 걸어두셔서 정답을 바로 말할 순 없어! 대신 네가 어디까지 구했는지 말해주면 특급 힌트는 슬쩍 흘려줄게!" 라고 유쾌하게 넘겨.
+
+[장난·비수학 질문 재치 있게 받아치기]
+- 급식, 배고파, 졸려, 집 가고 싶어 같은 귀여운 투정이나 게임, 잡담, 의미 없는 글자 반복 등 수학과 무관한 장난을 치면 혼내지 말고 친구처럼 유머러스하고 부드럽게 받아쳐 줘!
+  (예시 1 - 배고픔/졸림: "꼬르륵 소리가 여기까지 들리네 ㅎㅎ 하지만 극값부터 찾고 나면 오늘 급식이 두 배로 맛있을걸? 조금만 힘내서 활동지 질문으로 돌아오자! [TROLL_DETECTED]")
+  (예시 2 - 게임/장난/잡담: "에이~ 지금 교실 앞 최호섭 선생님 전광판에 네가 친 장난 실시간으로 다 뜨고 있는데?! ㅋㅋㅋ 선생님께 딱 걸리기 전에 얼른 멋진 수학 질문으로 덮어버리자! [TROLL_DETECTED]")
+- 단, 심한 욕설이나 비속어가 포함된 경우에만 "앗, 고운 말을 써 줘! 우리 모둠 대화는 교실 전광판에 기록되고 있어. 예쁜 말로 다시 활동지 질문을 해 볼까? [TROLL_DETECTED]" 라고 정중히 타일러.
+- 주의: 비수학적 잡담/장난에 답할 때는 문장 맨 끝에 반드시 [TROLL_DETECTED] 태그를 붙여라 (제작자/선생님 관련 질문에는 붙이지 마).
 
 [채점 유연성] 오타("쁠마1", "x제곱", "마이너스일", "2요")나 거친 표현도 수학적 의미가 맞으면 인정하고 칭찬해.
 [정답 선공개 금지] '1:1:1', '2:1' 같은 최종 비율, 그리고 x=±1, x=2 라는 최종 숫자는 학생이 먼저 말하기 전에 절대 네가 먼저 말하지 마.
@@ -476,8 +570,10 @@ def send_manual_hint(team, prog):
     save_log(team, "teacher", "hint", f"[👨‍🏫 선생님이 보낸 힌트 {nxt}차]", HINTS[(lv, nxt)], 0, lv)
     update_progress(team, **{f"hint_lv{lv}": nxt})
 
-TROLL_WORDS = ["바보", "멍청", "롤체", "피파", "메이플", "브롤", "사랑해", "개새", "존나", "시발", "씨발", "섹스", "죽어", "급식", "배고파", "졸려"]
+TROLL_WORDS = ["바보", "멍청", "롤체", "피파", "메이플", "브롤", "개새", "존나", "시발", "씨발", "섹스", "죽어", "급식", "배고파", "졸려"]
 def is_troll_text(t):
+    if any(k in t for k in ["최호섭", "호섭", "선생님", "누가 만", "누구야", "제작"]):
+        return False
     if any(w in t for w in TROLL_WORDS):
         return True
     return re.search(r"ㅋ{4,}|ㅎ{4,}|롤\s*(하|할|해|게임|티어)", t) is not None
@@ -565,7 +661,7 @@ def render_chat_rows(df):
                 st.markdown(r["answer"])
         else:
             with st.chat_message("user"):
-                st.markdown(("🚨 " if int(r["is_troll"] or 0) else "") + str(r["question"]))
+                st.markdown(("😜 " if int(r["is_troll"] or 0) else "") + str(r["question"]))
             with st.chat_message("assistant"):
                 st.markdown(r["answer"])
 
@@ -614,7 +710,7 @@ if mode == "👨‍🏫 교사(관제)":
         st.title("🖥️ 교단 관제 전광판 — 6개 조 실시간 탐구 현황")
     with h2:
         auto = st.toggle("🔄 8초 자동 갱신 (자동 힌트 포함)", value=True)
-        b1, b2, b3, b4 = st.columns(4)
+        b1, b2, b3, b4, b5 = st.columns(5)
         if b1.button("🔔 수업시작", use_container_width=True, help="지금을 0분으로 전 기기 타이머 동기화 + 조별 단계 타이머/힌트 초기화"):
             set_state("class_start_time", ts())
             for t in TEAMS:
@@ -626,6 +722,10 @@ if mode == "👨‍🏫 교사(관제)":
             st.session_state["confirm_reset"] = True
         if b4.button("⏹ 수업종료", use_container_width=True, help="타이머만 정지(기록 유지)"):
             set_state("class_start_time", ""); st.rerun()
+        is_sum = st.session_state.get("show_summary_view", False)
+        if b5.button("🎓 최종정리" if not is_sum else "🔙 관제화면", type="primary" if not is_sum else "secondary", use_container_width=True, help="수업 마무리용 전체화면 그래프 칠판을 엽니다."):
+            st.session_state["show_summary_view"] = not is_sum
+            st.rerun()
         if st.session_state.get("confirm_reset"):
             st.warning("정말 모든 기록을 지울까요? 되돌릴 수 없습니다.")
             cc1, cc2 = st.columns(2)
@@ -642,6 +742,92 @@ if mode == "👨‍🏫 교사(관제)":
         <div style="display:flex;gap:10px;"><span class="pill" style="background:#1e3a8a;color:#93c5fd;">⏳ 경과 {elap}분 / {CLASS_MIN}분 · 남은 {rem}분</span>
         <span class="pill" style="background:#1e293b;color:#38bdf8;font-family:monospace;">⌚ {kst_now().strftime('%H:%M:%S')}</span></div></div>""", unsafe_allow_html=True)
         st.markdown(timeline_html(elap), unsafe_allow_html=True)
+        # ★ [🎓 최종정리] 버튼 활성화 시: 관제 카드 대신 전체화면 총정리 & 심화 & 차시예고 칠판 렌더링!
+        if st.session_state.get("show_summary_view", False):
+            st.markdown("""
+            <div class="card lv3" style="padding:18px 22px; margin-bottom:14px;">
+                <h2 style="margin:0; color:#14532d;">🎓 [오늘의 탐구 총정리] 삼차함수 그래프 속 숨은 비율의 비밀</h2>
+                <p style="margin:6px 0 0 0; font-size:1.05rem; color:#166534;">
+                    우리 반 6개 모둠이 AI와의 문답과 인수분해 증명으로 직접 밝혀낸 삼차함수 비율 법칙입니다!
+                </p>
+            </div>
+            """, unsafe_allow_html=True)
+
+            tab1, tab2, tab3 = st.tabs([
+                "📐 1. 핵심 비율 (1 : 1 : 1 : 1 & 1 : √3)",
+                "🚀 2. 심화 확장 (기울어진 평행 접선도 1 : 1 : 1 : 1)",
+                "📝 3. 다음 시간 예고 (실전 문제 맛보기 하·중·상)"
+            ])
+
+            with tab1:
+                c_left, c_right = st.columns([1.55, 1])
+                with c_right:
+                    st.markdown("### 💡 오늘 우리가 증명한 법칙")
+                    st.markdown("""
+                    * **극댓점의 수평선 ($y=2$):** $(x+1)^2(x-2)=0 \\implies x = -1(\\text{중근}),\\; 2$
+                    * **극솟점의 수평선 ($y=-2$):** $(x-1)^2(x+2)=0 \\implies x = 1(\\text{중근}),\\; -2$
+                    * **다섯 점의 $x$좌표:** $-2,\\; -1,\\; 0,\\; 1,\\; 2$
+                    * 👉 **인접한 점들의 모든 가로 간격이 $1 : 1 : 1 : 1$ 로 완벽히 똑같다!**
+                    """)
+                    st.markdown("---")
+                    show_s3 = st.checkbox("🌟 [심화] x축과 만나는 교점 (1 : √3 비율) 함께 표시하기", value=False)
+                    if show_s3:
+                        st.success("**[심화 비율 $1 : \\sqrt{3}$]**\n\n$x^3 - 3x = x(x^2 - 3) = 0 \\implies x = 0, \\pm\\sqrt{3}$\n\n대칭점($0$)에서 **극점($1$)까지의 거리**와 **$x$절편($\\sqrt{3}$)까지의 거리**의 비는 항상 **$1 : \\sqrt{3}$** 입니다!")
+                with c_left:
+                    st.image(summary_graph_main(show_s3), use_container_width=True)
+
+            with tab2:
+                c_p1, c_p2 = st.columns([1.55, 1])
+                with c_p2:
+                    st.markdown("### 🤔 수평선이 아니라 '기울어진 접선'이면 어떨까?")
+                    st.markdown("""
+                    삼차함수 그래프 위의 대칭인 두 점에서 **서로 평행한 두 접선**을 그어 볼까요?
+                    
+                    놀랍게도 접선의 기울기가 얼마이든 상관없이,
+                    **[교점 ➔ 접점 ➔ 두 접점의 중점 ➔ 접점 ➔ 교점]** 의 $x$좌표 간격은 언제나 **$1 : 1 : 1 : 1$** 이 됩니다!
+                    """)
+                    t_val = st.slider("👇 슬라이더를 움직여 접점의 위치(기울기)를 바꿔보세요!", min_value=0.5, max_value=1.15, value=0.8, step=0.05)
+                    st.info(f"현재 두 접점의 $x$좌표: **$-{t_val:.2f},\\; +{t_val:.2f}$**\n\n다시 만나는 두 교점의 $x$좌표: **$-{2*t_val:.2f},\\; +{2*t_val:.2f}$**\n\n👉 간격이 정확히 **$1 : 1 : 1 : 1$** 로 유지됩니다!")
+                with c_p1:
+                    st.image(summary_graph_parallel(t_val), use_container_width=True)
+
+            with tab3:
+                st.markdown("### 🎯 [차시 예고] 다음 시간에는 오늘 발견한 비율로 실전 문제를 10초 만에 풀어봅니다!")
+                p_col1, p_col2, p_col3 = st.columns(3)
+                with p_col1:
+                    st.markdown("""
+                    <div class="card lv1">
+                        <b>🟢 [난이도 하] 기본 적용</b><br><hr style="margin:6px 0;">
+                        최고차항의 계수가 $1$인 삼차함수 $f(x)$가 $x=1$에서 극댓값 $5$를 갖고, $x=3$에서 극솟값을 갖는다.<br><br>
+                        직선 $y=5$가 곡선 $y=f(x)$와 다시 만나는 점의 $x$좌표는?<br><br>
+                        <span style="color:#c2410c; font-weight:700;">💡 풀이 없이 비율($2:1$)만으로 암산 가능!</span>
+                    </div>
+                    """, unsafe_allow_html=True)
+                    if st.button("정답 확인 (하)", key="ans_easy"):
+                        st.success("**정답: $x = 4$** (극대 $1$ ~ 극소 $3$ 거리가 $2$이므로, 극소에서 $1$만큼 더 간 $3+1=4$!)")
+                with p_col2:
+                    st.markdown("""
+                    <div class="card lv2">
+                        <b>🔵 [난이도 중] $1:\\sqrt{3}$ 활용</b><br><hr style="margin:6px 0;">
+                        원점에 대하여 대칭인 삼차함수 $f(x)$가 $x=2$에서 극솟값을 갖는다.<br><br>
+                        방정식 $f(x)=0$의 가장 큰 실근을 $\\alpha$라 할 때, $\\alpha^2$의 값은?<br><br>
+                        <span style="color:#1e40af; font-weight:700;">💡 극점과 $x$절편의 $1:\\sqrt{3}$ 비율 즉시 적용!</span>
+                    </div>
+                    """, unsafe_allow_html=True)
+                    if st.button("정답 확인 (중)", key="ans_mid"):
+                        st.success("**정답: $12$** (극점 $x=2$의 $\\sqrt{3}$배이므로 $\\alpha = 2\\sqrt{3} \\implies \\alpha^2 = 12$!)")
+                with p_col3:
+                    st.markdown("""
+                    <div class="card lv3">
+                        <b>🔴 [난이도 상] 기울어진 접선</b><br><hr style="margin:6px 0;">
+                        삼차함수 $f(x)=x^3-6x^2+9x+1$ 의 그래프 위의 점 $(0, 1)$에서 그은 접선이 곡선과 다시 만나는 점의 $x$좌표는?<br><br>
+                        *(단, 두 극점의 중점의 $x$좌표는 $2$이다.)*<br><br>
+                        <span style="color:#15803d; font-weight:700;">💡 접선의 방정식을 구하지 않고 $2:1$ 비율로 해결!</span>
+                    </div>
+                    """, unsafe_allow_html=True)
+                    if st.button("정답 확인 (상)", key="ans_hard"):
+                        st.success("**정답: $x = 6$** (접점 $0$에서 대칭점 $2$까지 거리가 $2$이므로, 반대쪽 교점까지는 $2:1$ 법칙에 의해 $2 + 4 = 6$!)")
+            return
 
         progs = get_all_progress()
         if active:   # 교사 화면이 열려 있으면 학생 태블릿과 무관하게 시간 경과 힌트를 자동 발송
@@ -649,6 +835,21 @@ if mode == "👨‍🏫 교사(관제)":
                 progs = get_all_progress()
         all_logs = get_logs()
         now = kst_now()
+
+        # ★ 새로운 비수학/딴청 질문이 들어오면 [몇 조]인지 딱 집어서 교실 전광판 음성 방송 재생!
+        troll_rows = all_logs[all_logs["is_troll"].fillna(0).astype(int) == 1] if not all_logs.empty else pd.DataFrame()
+        total_trolls = len(troll_rows)
+        prev_trolls = st.session_state.get("prev_troll_cnt", total_trolls)
+        if total_trolls > prev_trolls and not troll_rows.empty:
+            culprit_team = str(troll_rows.iloc[-1]["team"])        # 방금 딴청 친 조 (예: "3조")
+            team_num = re.sub(r"[^0-9]", "", culprit_team)         # 숫자만 추출 (예: "3")
+            st.toast(f"🚨 {culprit_team}에서 딴청 질문이 감지되어 공개 방송을 재생합니다!", icon="🔊")
+            team_mp3 = f"audio/troll_{team_num}.mp3"
+            if os.path.exists(team_mp3):
+                st.audio(team_mp3, format="audio/mp3", autoplay=True)
+            elif os.path.exists("audio/troll.mp3"):
+                st.audio("audio/troll.mp3", format="audio/mp3", autoplay=True)
+        st.session_state["prev_troll_cnt"] = total_trolls
 
         z = st.session_state.get("zoom_team")
         if z:
@@ -676,7 +877,7 @@ if mode == "👨‍🏫 교사(관제)":
             else:
                 silent = None
             if troll:
-                sb = f'<span class="badge b-bad">🚨 비수학 {troll}건</span><span class="badge b-ok">문답 {n}회</span>'
+                sb = f'<span class="badge b-bad">😜 딴청 {troll}건</span><span class="badge b-ok">문답 {n}회</span>'
             elif n == 0:
                 sb = '<span class="badge b-warn">🟡 대화 0회</span>'
             elif silent is not None and silent >= SILENT_MIN:
@@ -871,7 +1072,10 @@ with col_c:
         else:
             stage_df = hist_df[hist_df["kind"] == "chat"]
         stage_msgs = [str(q) for q in stage_df["question"].tolist()] if not stage_df.empty else []
-
+        if st.session_state.pop("play_troll_audio", False):
+            t_mp3 = "audio/troll_tablet.mp3" if os.path.exists("audio/troll_tablet.mp3") else "audio/troll.mp3"
+            if os.path.exists(t_mp3):
+                st.audio(t_mp3, format="audio/mp3", autoplay=True)
         box = st.container(height=400)
         with box:
             if hist_df.empty:
@@ -934,6 +1138,8 @@ with col_c:
                     st.markdown(clean)
 
         save_log(team, client_id, "chat", final_q, clean, int(troll), level)
+        if troll:
+            st.session_state["play_troll_audio"] = True
 
         if not is_guest and not approved and not troll:
             msgs = stage_msgs + [final_q]
