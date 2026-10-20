@@ -792,41 +792,41 @@ if mode == "👨‍🏫 교사(관제)":
                     st.image(summary_graph_parallel(t_val), use_container_width=True)
 
             with tab3:
-                st.markdown("### 🎯 [차시 예고] 다음 시간에는 오늘 발견한 비율로 실전 문제를 10초 만에 풀어봅니다!")
+                st.markdown("### 🎯 [차시 예고] 오늘 발견한 비율 법칙으로 '수능 30번 킬러문제'를 1분 만에 풀어본다!")
                 p_col1, p_col2, p_col3 = st.columns(3)
                 with p_col1:
                     st.markdown("""
                     <div class="card lv1">
                         <b>🟢 [난이도 하] 기본 적용</b><br><hr style="margin:6px 0;">
-                        최고차항의 계수가 $1$인 삼차함수 $f(x)$가 $x=1$에서 극댓값 $5$를 갖고, $x=3$에서 극솟값을 갖는다.<br><br>
-                        직선 $y=5$가 곡선 $y=f(x)$와 다시 만나는 점의 $x$좌표는?<br><br>
-                        <span style="color:#c2410c; font-weight:700;">💡 풀이 없이 비율($2:1$)만으로 암산 가능!</span>
+                        최고차항의 계수가 1인 삼차함수 f(x)가 x=1에서 극댓값 5를 갖고, x=3에서 극솟값을 갖는다.<br><br>
+                        직선 y=5가 곡선 f(x)와 다시 만나는 점의 x좌표는?<br><br>
+                        <span style="color:#c2410c; font-weight:700;">💡 공식 연산 없이 비율(2:1)로 암산 가능!</span>
                     </div>
                     """, unsafe_allow_html=True)
                     if st.button("정답 확인 (하)", key="ans_easy"):
-                        st.success("**정답: $x = 4$** (극대 $1$ ~ 극소 $3$ 거리가 $2$이므로, 극소에서 $1$만큼 더 간 $3+1=4$!)")
+                        st.success("**정답: x = 4** (극대 1 ~ 극소 3 거리가 2이므로, 극소에서 2의 절반인 1만큼 더 간 3+1=4!)")
                 with p_col2:
                     st.markdown("""
                     <div class="card lv2">
-                        <b>🔵 [난이도 중] $1:\\sqrt{3}$ 활용</b><br><hr style="margin:6px 0;">
-                        원점에 대하여 대칭인 삼차함수 $f(x)$가 $x=2$에서 극솟값을 갖는다.<br><br>
-                        방정식 $f(x)=0$의 가장 큰 실근을 $\\alpha$라 할 때, $\\alpha^2$의 값은?<br><br>
-                        <span style="color:#1e40af; font-weight:700;">💡 극점과 $x$절편의 $1:\\sqrt{3}$ 비율 즉시 적용!</span>
+                        <b>🔵 [난이도 중] 1:√3 활용</b><br><hr style="margin:6px 0;">
+                        원점에 대하여 대칭인 삼차함수 f(x)가 x=2에서 극솟값을 갖는다.<br><br>
+                        방정식 f(x)=0의 가장 큰 실근을 α라 할 때, α²의 값은?<br><br>
+                        <span style="color:#1e40af; font-weight:700;">💡 극점과 x절편의 1:√3 비율 즉시 적용!</span>
                     </div>
                     """, unsafe_allow_html=True)
                     if st.button("정답 확인 (중)", key="ans_mid"):
-                        st.success("**정답: $12$** (극점 $x=2$의 $\\sqrt{3}$배이므로 $\\alpha = 2\\sqrt{3} \\implies \\alpha^2 = 12$!)")
+                        st.success("**정답: 12** (극점 x=2의 √3배이므로 α = 2√3 됨 ➔ α² = 12!)")
                 with p_col3:
                     st.markdown("""
                     <div class="card lv3">
-                        <b>🔴 [난이도 상] 기울어진 접선</b><br><hr style="margin:6px 0;">
-                        삼차함수 $f(x)=x^3-6x^2+9x+1$ 의 그래프 위의 점 $(0, 1)$에서 그은 접선이 곡선과 다시 만나는 점의 $x$좌표는?<br><br>
-                        *(단, 두 극점의 중점의 $x$좌표는 $2$이다.)*<br><br>
-                        <span style="color:#15803d; font-weight:700;">💡 접선의 방정식을 구하지 않고 $2:1$ 비율로 해결!</span>
+                        <b>🔴 [난이도 상] 실제 수능 30번 킬러</b><br><hr style="margin:6px 0;">
+                        최고차항 계수가 양수인 삼차함수 f(x)가 f(0)=0, f'(1)=1 이고, <br>
+                        방정식 f(x) = ±x 의 실근 개수가 각각 2개이다. f(3)의 값은?<br><br>
+                        <span style="color:#15803d; font-weight:700;">💡 직선 y=x와의 접점 비율을 쓰면 연립 없이 뚝딱!</span>
                     </div>
                     """, unsafe_allow_html=True)
                     if st.button("정답 확인 (상)", key="ans_hard"):
-                        st.success("**정답: $x = 6$** (접점 $0$에서 대칭점 $2$까지 거리가 $2$이므로, 반대쪽 교점까지는 $2:1$ 법칙에 의해 $2 + 4 = 6$!)")
+                        st.success("**정답: f(3) = 27** (직선 y=x와 원점에서 만나고 x=1에서 접한다는 기하적 의미를 비율로 파악하면 f(x)식을 단번에 확정할 수 있습니다!)")
             return
 
         progs = get_all_progress()
