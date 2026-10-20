@@ -809,7 +809,7 @@ if mode == "👨‍🏫 교사(관제)":
                     st.success("**정답: x = 4** (극대 1 ~ 극소 3 거리가 2이므로, 극소에서 2의 절반인 1만큼 더 간 3+1=4!)")
 
 
-                # 난이도 중 (평가원 20번 기출 + 깔끔한 네모 박스 보기)
+                # 난이도 중 (평가원 20번 기출 + 완벽한 보기 박스)
                 st.markdown("""
                 <div class="card lv2" style="margin-bottom: 12px; padding: 16px 20px;">
                     <b style="font-size: 1.15rem; color: #1e40af;">🔵 [난이도 중] 평가원 4점 기출 (대칭성 활용)</b><br>
@@ -821,13 +821,13 @@ if mode == "👨‍🏫 교사(관제)":
                         <b>[보 기]</b><br>
                         ㄱ. 도함수 f'(x)는 x = 0에서 최솟값을 갖는다.<br>
                         ㄴ. 방정식 f(x) = f(2)는 서로 다른 두 실근을 갖는다.<br>
-                        ㄷ. 곡선 위의 접선 성질
+                        ㄷ. 곡선 y=f(x) 위의 점 (-1, f(-1))에서의 접선은 점 (2, f(2))를 지난다.
                     </div>
-                    <span style="color:#1e40af; font-weight:700; font-size: 0.95rem;">💡 f'(-3)=f'(3)을 보는 순간, 도함수의 대칭축(중점)이 x=0임을 알 수 있어 극솟점이 x=2로 즉시 튀어나옴!</span>
+                    <span style="color:#1e40af; font-weight:700; font-size: 0.95rem;">💡 f'(-3)=f'(3)을 통해 대칭축이 x=0임을 알면, 극솟점이 x=2가 되고 ㄱ, ㄴ, ㄷ 모두 연립 없이 비율로 3초 만에 해결 가능!</span>
                 </div>
                 """, unsafe_allow_html=True)
                 if st.button("정답 확인 (난이도 중)", key="ans_mid", use_container_width=True):
-                    st.success("**정답: ③ (ㄱ, ㄴ)** (대칭축이 x=0이므로 극댓점 -2의 상대방인 극솟점은 x=2! ㄱ과 ㄴ 모두 대칭성과 비율로 3초 만에 참 판정 가능!)")
+                    st.success("**정답: ③ (ㄱ, ㄴ)** (대칭점인 x=0을 기준으로 극대가 -2, 극소가 2이므로 ㄱ과 ㄴ은 참, ㄷ은 접선과 교점의 비율 성질을 써보면 거짓임을 쉽게 알 수 있습니다!)")
 
                 # 난이도 상 (수능 30번 킬러)
                 st.markdown("""
