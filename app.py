@@ -808,15 +808,21 @@ if mode == "👨‍🏫 교사(관제)":
                 if st.button("정답 확인 (난이도 하)", key="ans_easy", use_container_width=True):
                     st.success("**정답: x = 4** (극대 1 ~ 극소 3 거리가 2이므로, 극소에서 2의 절반인 1만큼 더 간 3+1=4!)")
 
-                # 난이도 중 (방금 골라주신 평가원 20번 기출!)
+
+                # 난이도 중 (평가원 20번 기출 + 깔끔한 네모 박스 보기)
                 st.markdown("""
                 <div class="card lv2" style="margin-bottom: 12px; padding: 16px 20px;">
                     <b style="font-size: 1.15rem; color: #1e40af;">🔵 [난이도 중] 평가원 4점 기출 (대칭성 활용)</b><br>
-                    <p style="font-size: 1.05rem; margin: 8px 0 12px 0; color: #1e293b;">
+                    <p style="font-size: 1.05rem; margin: 8px 0 10px 0; color: #1e293b;">
                         삼차함수 f(x)가 다음 조건을 만족한다.<br>
-                        (가) x = -2에서 극댓값을 갖는다. &nbsp;&nbsp; (나) f'(-3) = f'(3)<br>
-                        이때 <보기> 중 옳은 것만을 고르면? (ㄱ. 도함수 최솟값은 x=0 / ㄴ. f(x)=f(2) 실근은 2개 / ㄷ. 접선 성질)
+                        (가) x = -2에서 극댓값을 갖는다. &nbsp;&nbsp; (나) f'(-3) = f'(3)
                     </p>
+                    <div style="border: 1.5px solid #93c5fd; border-radius: 6px; background: #f0f9ff; padding: 10px 14px; margin: 8px 0 10px 0; font-size: 0.98rem; color: #1e3a8a;">
+                        <b>[보 기]</b><br>
+                        ㄱ. 도함수 f'(x)는 x = 0에서 최솟값을 갖는다.<br>
+                        ㄴ. 방정식 f(x) = f(2)는 서로 다른 두 실근을 갖는다.<br>
+                        ㄷ. 곡선 위의 접선 성질
+                    </div>
                     <span style="color:#1e40af; font-weight:700; font-size: 0.95rem;">💡 f'(-3)=f'(3)을 보는 순간, 도함수의 대칭축(중점)이 x=0임을 알 수 있어 극솟점이 x=2로 즉시 튀어나옴!</span>
                 </div>
                 """, unsafe_allow_html=True)
