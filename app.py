@@ -763,16 +763,27 @@ if mode == "👨‍🏫 교사(관제)":
                 c_left, c_right = st.columns([1.55, 1])
                 with c_right:
                     st.markdown("### 💡 오늘 우리가 증명한 법칙")
+                    # 글자 크기를 1.25rem으로 키우고 줄 간격(line-height)을 널찍하게 조절
                     st.markdown("""
-                    * **극댓점의 수평선 ($y=2$):** $(x+1)^2(x-2)=0 \\implies x = -1(\\text{중근}),\\; 2$
-                    * **극솟점의 수평선 ($y=-2$):** $(x-1)^2(x+2)=0 \\implies x = 1(\\text{중근}),\\; -2$
-                    * **다섯 점의 $x$좌표:** $-2,\\; -1,\\; 0,\\; 1,\\; 2$
-                    * 👉 **인접한 점들의 모든 가로 간격이 $1 : 1 : 1 : 1$ 로 완벽히 똑같다!**
-                    """)
+                    <div style="font-size: 1.25rem; line-height: 1.7; color: #1e293b;">
+                        * <b>극댓점의 수평선 (y = 2):</b><br>&nbsp;&nbsp; (x + 1)²(x - 2) = 0 &nbsp;⇒&nbsp; x = -1(중근), 2<br>
+                        * <b>극솟점의 수평선 (y = -2):</b><br>&nbsp;&nbsp; (x - 1)²(x + 2) = 0 &nbsp;⇒&nbsp; x = 1(중근), -2<br>
+                        * <b>다섯 점의 x좌표:</b> -2, -1, 0, 1, 2<br>
+                        👉 <b style="color: #15803d;">인접한 점들의 모든 가로 간격이 1 : 1 : 1 : 1 로 완벽히 똑같다!</b>
+                    </div>
+                    """, unsafe_allow_html=True)
                     st.markdown("---")
+                    
+                    # 체크박스 글씨도 잘 보이도록 스타일 및 폰트 크기 확대
                     show_s3 = st.checkbox("🌟 [심화] x축과 만나는 교점 (1 : √3 비율) 함께 표시하기", value=False)
                     if show_s3:
-                        st.success("**[심화 비율 $1 : \\sqrt{3}$]**\n\n$x^3 - 3x = x(x^2 - 3) = 0 \\implies x = 0, \\pm\\sqrt{3}$\n\n대칭점($0$)에서 **극점($1$)까지의 거리**와 **$x$절편($\\sqrt{3}$)까지의 거리**의 비는 항상 **$1 : \\sqrt{3}$** 입니다!")
+                        st.markdown("""
+                        <div class="card lv3" style="font-size: 1.15rem; line-height: 1.6; padding: 14px 16px; margin-top: 10px;">
+                            <b>[심화 비율 1 : √3]</b><br>
+                            x³ - 3x = x(x² - 3) = 0 &nbsp;⇒&nbsp; x = 0, ±√3<br>
+                            대칭점(0)에서 <b>극점(1)까지의 거리</b>와 <b>x절편(√3)까지의 거리</b> 비는 항상 <b>1 : √3</b> 입니다!
+                        </div>
+                        """, unsafe_allow_html=True)
                 with c_left:
                     st.image(summary_graph_main(show_s3), use_container_width=True)
 
@@ -781,13 +792,23 @@ if mode == "👨‍🏫 교사(관제)":
                 with c_p2:
                     st.markdown("### 🤔 수평선이 아니라 '기울어진 접선'이면 어떨까?")
                     st.markdown("""
-                    삼차함수 그래프 위의 대칭인 두 점에서 **서로 평행한 두 접선**을 그어 볼까요?
+                    <div style="font-size: 1.25rem; line-height: 1.7; color: #1e293b;">
+                        삼차함수 그래프 위의 대칭인 두 점에서 <b>서로 평행한 두 접선</b>을 그어 볼까요?<br><br>
+                        놀랍게도 접선의 기울기가 얼마이든 상관없이,<br>
+                        <b>[교점 ➔ 접점 ➔ 중점 ➔ 접점 ➔ 교점]</b>의 x좌표 간격은 언제나 <b>1 : 1 : 1 : 1</b>이 됩니다!
+                    </div>
+                    """, unsafe_allow_html=True)
                     
-                    놀랍게도 접선의 기울기가 얼마이든 상관없이,
-                    **[교점 ➔ 접점 ➔ 두 접점의 중점 ➔ 접점 ➔ 교점]** 의 $x$좌표 간격은 언제나 **$1 : 1 : 1 : 1$** 이 됩니다!
-                    """)
+                    st.markdown("<br>", unsafe_allow_html=True)
                     t_val = st.slider("👇 슬라이더를 움직여 접점의 위치(기울기)를 바꿔보세요!", min_value=0.5, max_value=1.15, value=0.8, step=0.05)
-                    st.info(f"현재 두 접점의 $x$좌표: **$-{t_val:.2f},\\; +{t_val:.2f}$**\n\n다시 만나는 두 교점의 $x$좌표: **$-{2*t_val:.2f},\\; +{2*t_val:.2f}$**\n\n👉 간격이 정확히 **$1 : 1 : 1 : 1$** 로 유지됩니다!")
+                    
+                    st.markdown(f"""
+                    <div class="card lv2" style="font-size: 1.15rem; line-height: 1.6; padding: 12px 16px; margin-top: 10px;">
+                        현재 두 접점의 x좌표: <b>-{t_val:.2f}, &nbsp; +{t_val:.2f}</b><br>
+                        다시 만나는 교점의 x좌표: <b>-{2*t_val:.2f}, &nbsp; +{2*t_val:.2f}</b><br>
+                        👉 간격이 정확히 <b style="color: #2563eb;">1 : 1 : 1 : 1</b>로 유지됩니다!
+                    </div>
+                    """, unsafe_allow_html=True)
                 with c_p1:
                     st.image(summary_graph_parallel(t_val), use_container_width=True)
 
