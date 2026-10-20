@@ -832,9 +832,9 @@ if mode == "👨‍🏫 교사(관제)":
                 # 난이도 상 (수능 30번 킬러)
                 st.markdown("""
                 <div class="card lv3" style="margin-bottom: 12px; padding: 16px 20px;">
-                    <b style="font-size: 1.15rem; color: #15803d;">🔴 [난이도 상] 수능 30번 킬러 맛보기</b><br>
+                    <b style="font-size: 1.15rem; color: #15803d;">🔴 [난이도 상] 수능 30번 맛보기</b><br>
                     <p style="font-size: 1.05rem; margin: 8px 0 12px 0; color: #1e293b;">
-                        최고차항 계수가 양수인 삼차함수 f(x)가 f(0)=0, f'(1)=1 이고, 방정식 f(x) = ±x 의 실근 개수가 각각 2개이다. f(3)의 값은?
+                        최고차항 계수가 양수인 삼차함수 f(x)가 f(0)=0, f'(1)=1 이고, 방정식 f(x)-x=0, f(x)+x=0 의 실근 개수가 각각 2개이다. f(3)의 값은?
                     </p>
                     <span style="color:#15803d; font-weight:700; font-size: 0.95rem;">💡 직선 y=x와의 접점 비율(1:2)을 쓰면 복잡한 연립 방정식 없이 f(x)가 뚝딱 완성됨!</span>
                 </div>
