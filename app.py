@@ -673,10 +673,37 @@ def render_chat_rows(df):
             with st.chat_message("assistant"):
                 st.markdown(r["answer"])
 
+def play_persistent_audio(path, force_restart=False):
+    """2초/6초 자동 새로고침에도 절대 끊기지 않도록 브라우저 부모창(window.parent)에서 독립 재생"""
+    if not path or not os.path.exists(path):
+        return
+    import base64
+    with open(path, "rb") as f:
+        b64 = base64.b64encode(f.read()).decode("utf-8")
+    force_js = "true" if force_restart else "false"
+    components.html(f"""<script>
+    (function() {{
+        try {{
+            const P = window.parent;
+            if (P.__csAudio && !P.__csAudio.paused && !P.__csAudio.ended) {{
+                if ({force_js}) {{
+                    P.__csAudio.pause();
+                }} else {{
+                    return;
+                }}
+            }}
+            const a = new P.Audio("data:audio/mpeg;base64,{b64}");
+            P.__csAudio = a;
+            const pr = a.play();
+            if (pr && pr.catch) pr.catch(function(e) {{ console.warn("오디오 재생 차단:", e); }});
+        }} catch (e) {{ console.warn("오디오 오류:", e); }}
+    }})();
+    </script>""", height=0)
+
 def mission_audio(step, fallback):
     p = f"audio/step{step}.mp3"
     if os.path.exists(p):
-        st.audio(p, format="audio/mp3", autoplay=True)
+        play_persistent_audio(p, force_restart=True)
     else:
         st.info(f"🔊 {fallback}")
 
@@ -695,24 +722,6 @@ MISSION_CARD = {
         "③ <b>한 번 더!</b> 극솟점 (1, −2)에서 수평선 y = −2 를 그으면? 같은 방법으로 확인하세요.<br>"
         "④ <b>최종 보고</b>: 발견한 비율 법칙을 한 문장으로 AI에게 보고하세요(선생님 전광판 게시). 남는 시간엔 <b>심화 퀘스트</b>!"),
 }
-def play_persistent_audio(path):
-    if not path or not os.path.exists(path):
-        return
-    import base64
-    with open(path, "rb") as f:
-        b64 = base64.b64encode(f.read()).decode("utf-8")
-    components.html(f"""<script>
-    (function() {{
-        try {{
-            const P = window.parent;
-            if (P.__csAudio && !P.__csAudio.paused && !P.__csAudio.ended) return;
-            const a = new P.Audio("data:audio/mpeg;base64,{b64}");
-            P.__csAudio = a;
-            const pr = a.play();
-            if (pr && pr.catch) pr.catch(function(e) {{ console.warn("오디오 재생 차단:", e); }});
-        }} catch (e) {{ console.warn("오디오 오류:", e); }}
-    }})();
-    </script>""", height=0)
 # ----------------------------------------------------------------------------
 # 8. 교실 전광판 (디스플레이 전용) & 교사 관제 (태블릿 리모컨)
 # ----------------------------------------------------------------------------
