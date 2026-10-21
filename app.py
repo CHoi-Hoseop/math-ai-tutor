@@ -813,15 +813,14 @@ if mode in (BOARD_MODE, REMOTE_MODE):
         if sc2.button("📊 전광판: 통계·최종보고 보기", type="primary" if (not is_sum_top and cur_bpage == "stats") else "secondary", use_container_width=True):
             set_state("show_summary_view", "0"); set_state("board_page", "stats"); set_state("board_scroll", "0"); st.rerun()
         
-        cur_scroll = int(get_state("board_scroll") or "0")
-        if sc3.button("⬆️ 맨위로", use_container_width=True, help="전광판 스크롤을 맨 위로 올립니다"):
-            set_state("board_scroll", "0"); st.rerun()
-        if sc4.button("🔼 위로", use_container_width=True, help="전광판 화면을 위로 스크롤합니다"):
-            set_state("board_scroll", str(max(0, cur_scroll - 420))); st.rerun()
-        if sc5.button("🔽 아래로", use_container_width=True, help="전광판 화면을 아래로 스크롤합니다"):
-            set_state("board_scroll", str(cur_scroll + 420)); st.rerun()
-        if sc6.button("⬇️ 맨아래", use_container_width=True, help="전광판 스크롤을 맨 아래로 내립니다"):
-            set_state("board_scroll", "99999"); st.rerun()
+        if sc3.button("⬆️ 맨위로", use_container_width=True, help="한 번 누르면 전광판이 맨 위로 올라갑니다"):
+            set_state("board_scroll", f"TOP_{time.time()}"); st.rerun()
+        if sc4.button("🔼 위로", use_container_width=True, help="한 번 누를 때마다 전광판이 한 뼘씩 위로 올라갑니다"):
+            set_state("board_scroll", f"UP_{time.time()}"); st.rerun()
+        if sc5.button("🔽 아래로", use_container_width=True, help="한 번 누를 때마다 전광판이 한 뼘씩 아래로 내려갑니다"):
+            set_state("board_scroll", f"DOWN_{time.time()}"); st.rerun()
+        if sc6.button("⬇️ 맨아래", use_container_width=True, help="한 번 누르면 전광판이 맨 아래로 내려갑니다"):
+            set_state("board_scroll", f"BOTTOM_{time.time()}"); st.rerun()
 
         # ★ [리모컨 전용] 1~6조 학생 접속 차단 스위치 & 실시간 입장 비밀번호 설정/변경!
         cur_s_pin = get_state("student_pin") or ""
@@ -854,30 +853,41 @@ if mode in (BOARD_MODE, REMOTE_MODE):
         <span class="pill" style="background:#1e293b;color:#38bdf8;font-family:monospace;">⌚ {kst_now().strftime('%H:%M:%S')}</span></div></div>""", unsafe_allow_html=True)
         st.markdown(timeline_html(elap), unsafe_allow_html=True)
 
-        # ★ [전광판 전용] 전체 화면 + 확대된 조별 대화창 + 미니 카드 등 스크롤이 있는 모든 박스를 원격 제어!
+        # ★ [전광판 전용] 리모컨 스크롤 버튼을 누를 때만 현재 위치에서 부드럽게 이동!
         if is_board:
-            target_y = int(get_state("board_scroll") or "0")
-            prev_y = st.session_state.get("prev_scroll_y", -1)
-            behavior = "smooth" if target_y != prev_y else "auto"
-            st.session_state["prev_scroll_y"] = target_y
-            components.html(f"""<script>
-                (function() {{
-                    const doc = window.parent.document;
-                    const y = {target_y};
-                    const beh = "{behavior}";
-                    // 메인 화면 + st.container(height=...) 내부 스크롤 박스를 모두 탐색
-                    const allEls = doc.querySelectorAll('[data-testid="stMain"], section.main, [data-testid="stAppViewContainer"], [data-testid="stVerticalBlockBorderWrapper"] div, div');
-                    allEls.forEach(el => {{
-                        if (el && el.scrollHeight > el.clientHeight + 10) {{
-                            const st = window.parent.getComputedStyle(el);
-                            if (st.overflowY === 'auto' || st.overflowY === 'scroll' || el.tagName === 'SECTION') {{
-                                el.scrollTo({{top: y, behavior: beh}});
+            sc_cmd = get_state("board_scroll") or ""
+            prev_sc = st.session_state.get("prev_scroll_cmd", sc_cmd)
+            if sc_cmd and sc_cmd != prev_sc:
+                st.session_state["prev_scroll_cmd"] = sc_cmd
+                action = sc_cmd.split("_")[0]   # TOP, UP, DOWN, BOTTOM (또는 "0")
+                components.html(f"""<script>
+                    (function() {{
+                        const doc = window.parent.document;
+                        const act = "{action}";
+                        const step = 350;  // 한 번 클릭 시 이동할 간격(px)
+                        
+                        // 화면 내 스크롤이 존재하는 모든 요소(전체화면 + 조별 확대창 + 미니카드) 찾기
+                        const allEls = doc.querySelectorAll('[data-testid="stMain"], section.main, [data-testid="stAppViewContainer"], div');
+                        allEls.forEach(el => {{
+                            if (el && el.scrollHeight > el.clientHeight + 5) {{
+                                const st = window.parent.getComputedStyle(el);
+                                if (st.overflowY === 'auto' || st.overflowY === 'scroll' || el.tagName === 'SECTION' || el.getAttribute('data-testid') === 'stMain') {{
+                                    if (act === 'TOP' || act === '0') {{
+                                        el.scrollTo({{top: 0, behavior: 'smooth'}});
+                                    }} else if (act === 'BOTTOM') {{
+                                        el.scrollTo({{top: el.scrollHeight, behavior: 'smooth'}});
+                                    }} else if (act === 'UP') {{
+                                        el.scrollBy({{top: -step, behavior: 'smooth'}});
+                                    }} else if (act === 'DOWN') {{
+                                        el.scrollBy({{top: step, behavior: 'smooth'}});
+                                    }}
+                                }}
                             }}
-                        }}
-                    }});
-                    window.parent.scrollTo({{top: y, behavior: beh}});
-                }})();
-            </script>""", height=0)
+                        }});
+                    }})();
+                </script>""", height=0)
+            else:
+                st.session_state["prev_scroll_cmd"] = sc_cmd
 
         # =====================================================================
         # ★ [🎓 최종정리] 화면 (탭 전환 + 그래프 100% 전체확대 + 슬라이더 + 정답 공개 모두 연동!)
