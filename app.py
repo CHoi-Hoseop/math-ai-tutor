@@ -668,9 +668,9 @@ def level_badge(prog):
         return f'<span class="badge b-lv1">🔒 LV1 {"(버튼대기)" if prog["step1_approved"] else "(탐구중)"}</span>'
     if lv == 2:
         return f'<span class="badge b-lv2">🔓 LV2 {"(버튼대기)" if prog["step2_approved"] else "(탐구중)"}</span>'
-        if prog.get("done"):
-            return '<span class="badge b-ok">🏆👑 LV3 완료!</span>'
-        return '<span class="badge b-lv3">🏆 LV3 (증명중)</span>'
+    if prog.get("done"):
+        return '<span class="badge b-ok">🏆👑 LV3 완료!</span>'
+    return '<span class="badge b-lv3">🏆 LV3 (증명중)</span>'
 
 def timeline_html(elap):
     steps = [("1단계 문제 제기", "0~9분 · 증감표", elap <= 9), ("2단계 AI 기하 탐구", "9~25분 · 교점·간격 측정", 9 < elap <= 25),
@@ -689,29 +689,29 @@ def render_chat_rows(df):
             with st.chat_message("assistant"):
                 st.markdown(r["answer"])
 
-def play_persistent_audio(path, force_restart=False):
-    """2초/6초 자동 새로고침에도 절대 끊기지 않도록 브라우저 부모창(window.parent)에서 독립 재생"""
+def play_persistent_audio(path, force_restart=True):
+    """새로운 오디오 재생 시 기존 소리를 무조건 강제 정지하고 단일 재생 보장"""
     if not path or not os.path.exists(path):
         return
     import base64
     with open(path, "rb") as f:
         b64 = base64.b64encode(f.read()).decode("utf-8")
-    force_js = "true" if force_restart else "false"
     components.html(f"""<script>
     (function() {{
         try {{
             const P = window.parent;
-            if (P.__csAudio && !P.__csAudio.paused && !P.__csAudio.ended) {{
-                if ({force_js}) {{
+            if (P.__csAudio) {{
+                try {{
                     P.__csAudio.pause();
-                }} else {{
-                    return;
-                }}
+                    P.__csAudio.currentTime = 0;
+                }} catch(err) {{}}
             }}
             const a = new P.Audio("data:audio/mpeg;base64,{b64}");
             P.__csAudio = a;
             const pr = a.play();
-            if (pr && pr.catch) pr.catch(function(e) {{ console.warn("오디오 재생 차단:", e); }});
+            if (pr && pr.catch) {{
+                pr.catch(function(e) {{ console.warn("오디오 재생 차단:", e); }});
+            }}
         }} catch (e) {{ console.warn("오디오 오류:", e); }}
     }})();
     </script>""", height=0)
@@ -988,65 +988,182 @@ if mode in (BOARD_MODE, REMOTE_MODE):
                         st.markdown(title_bar, unsafe_allow_html=True)
                         st.image(summary_graph_parallel(t_val), use_container_width=True)
 
-            # ---- 탭 3 : 차시 예고 (하·중·상 문제 & 원격 정답 공개) ----
+            # ---- 탭 3 : 차시 예고 (하·중·상 문제 개별 전체화면 확대 & 원격 정답 공개) ----
             else:
-                st.markdown("### 🎯 [차시 예고] 오늘 발견한 비율 법칙으로 기출 문제를 1분 만에 풀어본다!")
                 ans1 = (get_state("sum_ans_easy") == "1")
                 ans2 = (get_state("sum_ans_mid") == "1")
                 ans3 = (get_state("sum_ans_hard") == "1")
+                q_zoom = get_state("sum_q_zoom") or "all"   # 'all', '1', '2', '3'
 
-                # 리모컨 상단에 정답 공개 버튼 3개를 나란히 배치하여 조작 편의성 극대화!
+                # [리모컨 & 화면 상단 컨트롤] 어떤 문제를 전체화면으로 띄울지 + 정답 공개 버튼
                 if not is_board:
+                    st.markdown("##### 🔍 [전광판 문제 확대 선택] 버튼을 누르면 해당 문제만 전광판 전체화면에 줄바꿈되어 크게 뜹니다!")
+                    qz0, qz1, qz2, qz3 = st.columns([1.1, 1, 1, 1])
+                    if qz0.button("📋 3문제 한눈에", type="primary" if q_zoom == "all" else "secondary", use_container_width=True):
+                        set_state("sum_q_zoom", "all"); set_state("board_scroll", "0"); st.rerun()
+                    if qz1.button("🟢 1번(하) 전체확대", type="primary" if q_zoom == "1" else "secondary", use_container_width=True):
+                        set_state("sum_q_zoom", "1"); set_state("board_scroll", "0"); st.rerun()
+                    if qz2.button("🔵 2번(중) 전체확대", type="primary" if q_zoom == "2" else "secondary", use_container_width=True):
+                        set_state("sum_q_zoom", "2"); set_state("board_scroll", "0"); st.rerun()
+                    if qz3.button("🔴 3번(상) 전체확대", type="primary" if q_zoom == "3" else "secondary", use_container_width=True):
+                        set_state("sum_q_zoom", "3"); set_state("board_scroll", "0"); st.rerun()
+
                     ab1, ab2, ab3 = st.columns(3)
-                    if ab1.button("🟢 [난이도 하] 정답 " + ("숨기기" if ans1 else "공개"), type="primary" if ans1 else "secondary", use_container_width=True):
+                    if ab1.button("🟢 1번(하) 정답 " + ("숨기기" if ans1 else "공개"), type="primary" if ans1 else "secondary", use_container_width=True):
                         set_state("sum_ans_easy", "0" if ans1 else "1"); st.rerun()
-                    if ab2.button("🔵 [난이도 중] 정답 " + ("숨기기" if ans2 else "공개"), type="primary" if ans2 else "secondary", use_container_width=True):
+                    if ab2.button("🔵 2번(중) 정답 " + ("숨기기" if ans2 else "공개"), type="primary" if ans2 else "secondary", use_container_width=True):
                         set_state("sum_ans_mid", "0" if ans2 else "1"); st.rerun()
-                    if ab3.button("🔴 [난이도 상] 정답 " + ("숨기기" if ans3 else "공개"), type="primary" if ans3 else "secondary", use_container_width=True):
+                    if ab3.button("🔴 3번(상) 정답 " + ("숨기기" if ans3 else "공개"), type="primary" if ans3 else "secondary", use_container_width=True):
                         set_state("sum_ans_hard", "0" if ans3 else "1"); st.rerun()
 
-                # [난이도 하]
-                st.markdown("""
-                <div class="card lv1" style="margin-bottom: 10px; padding: 16px 22px;">
-                    <b style="font-size: 1.3rem; color: #c2410c;">🟢 [난이도 하] 기본 적용 (교과서 공략)</b><br>
-                    <p style="font-size: 1.2rem; margin: 8px 0 10px 0; color: #1e293b; line-height: 1.55;">
-                        최고차항의 계수가 1인 삼차함수 f(x)가 x=1에서 극댓값 5를 갖고, x=3에서 극솟값을 갖는다. 직선 y=5가 곡선 f(x)와 다시 만나는 점의 x좌표는?
-                    </p>
-                    <span style="color:#c2410c; font-weight:700; font-size: 1.05rem;">💡 공식 연산 없이 비율(2:1)로 암산 가능!</span>
-                </div>
-                """, unsafe_allow_html=True)
-                if ans1:
-                    st.success("🎉 **정답: x = 4** (극대 1 ~ 극소 3 거리가 2이므로, 극소에서 2의 절반인 1만큼 더 간 3+1=4!)")
-
-                # [난이도 중]
-                st.markdown("""
-                <div class="card lv2" style="margin-bottom: 10px; padding: 16px 22px;">
-                    <b style="font-size: 1.3rem; color: #1e40af;">🔵 [난이도 중] 평가원 4점 기출 (대칭성 활용)</b><br>
-                    <p style="font-size: 1.2rem; margin: 8px 0 10px 0; color: #1e293b; line-height: 1.55;">
-                        삼차함수 f(x)가 다음 조건을 만족한다. &nbsp;&nbsp; (가) x = -2에서 극댓값을 갖는다. &nbsp;&nbsp; (나) f'(-3) = f'(3)
-                    </p>
-                    <div style="border: 2px solid #93c5fd; border-radius: 8px; background: #f0f9ff; padding: 10px 16px; margin: 8px 0 10px 0; font-size: 1.12rem; color: #1e3a8a; line-height: 1.55;">
-                        <b>[보 기]</b> &nbsp; ㄱ. 도함수 f'(x)는 x = 0에서 최솟값을 갖는다. &nbsp;/&nbsp; ㄴ. 방정식 f(x) = f(2)는 서로 다른 두 실근을 갖는다.<br>
-                        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ㄷ. 곡선 y=f(x) 위의 점 (-1, f(-1))에서의 접선은 점 (2, f(2))를 지난다.
+                # ==================== [확대 모드 1 : 난이도 하] ====================
+                if q_zoom == "1":
+                    st.markdown("""
+                    <div class="card lv1" style="padding: 36px 44px; margin-top: 8px; border-width: 3px;">
+                        <div style="font-size: 1.9rem; font-weight: 900; color: #c2410c; margin-bottom: 24px;">
+                            🟢 [기출 맛보기 1 — 난이도 하] 기본 적용 (교과서 공략)
+                        </div>
+                        <div style="font-size: 1.85rem; color: #0f172a; line-height: 1.85; font-weight: 700; margin-bottom: 28px;">
+                            • 최고차항의 계수가 <span style="color:#dc2626;">1</span>인 삼차함수 <b>f(x)</b>가 있다.<br>
+                            • <b>x = 1</b> 에서 <b>극댓값 5</b>를 갖고,<br>
+                            • <b>x = 3</b> 에서 <b>극솟값</b>을 갖는다.<br><br>
+                            👉 직선 <b>y = 5</b> 가 곡선 <b>y = f(x)</b> 와 다시 만나는 점의 <b>x좌표</b>는?
+                        </div>
+                        <div style="background:#ffedd5; padding:16px 22px; border-radius:10px; color:#9a3412; font-weight:800; font-size: 1.4rem;">
+                            💡 힌트: 복잡한 미분·적분 연산 없이 오늘 배운 <b>비율 법칙 (2 : 1)</b> 으로 3초 만에 암산해 보세요!
+                        </div>
                     </div>
-                    <span style="color:#1e40af; font-weight:700; font-size: 1.05rem;">💡 f'(-3)=f'(3)을 통해 대칭축이 x=0임을 알면, 극솟점이 x=2가 되고 ㄱ, ㄴ, ㄷ 모두 연립 없이 비율로 3초 만에 해결 가능!</span>
-                </div>
-                """, unsafe_allow_html=True)
-                if ans2:
-                    st.success("🎉 **정답: ⑤ (ㄱ, ㄴ, ㄷ)** (대칭점인 x=0을 기준으로 극대가 -2, 극소가 2이므로 ㄱ, ㄴ, ㄷ 모두 대칭성과 비율 성질에 의해 완벽하게 참이 됩니다!)")
+                    """, unsafe_allow_html=True)
+                    if ans1:
+                        st.markdown("""
+                        <div class="unlock" style="font-size: 1.75rem; padding: 24px; margin-top: 16px;">
+                            🎉 <b>정답 : x = 4</b><br>
+                            <span style="font-size: 1.4rem; font-weight: 600;">
+                            극댓점(x = 1)에서 극솟점(x = 3)까지의 가로 거리가 <b>2</b>이므로,<br>
+                            극솟점에서 <b>1</b>만큼만 더 오른쪽으로 가면 교점 <b>3 + 1 = 4</b> 가 됩니다! (2 : 1 비율)
+                            </span>
+                        </div>
+                        """, unsafe_allow_html=True)
 
-                # [난이도 상]
-                st.markdown("""
-                <div class="card lv3" style="margin-bottom: 10px; padding: 16px 22px;">
-                    <b style="font-size: 1.3rem; color: #15803d;">🔴 [난이도 상] 수능 30번 맛보기</b><br>
-                    <p style="font-size: 1.2rem; margin: 8px 0 10px 0; color: #1e293b; line-height: 1.55;">
-                        최고차항 계수가 양수인 삼차함수 f(x)가 f(0)=0, f'(1)=1 이고, 방정식 f(x) = ±x 의 실근 개수가 각각 2개이다. f(3)의 값은?
-                    </p>
-                    <span style="color:#15803d; font-weight:700; font-size: 1.05rem;">💡 직선 y=x와의 접점 비율(1:2)을 쓰면 복잡한 연립 방정식 없이 f(x)가 뚝딱 완성됨!</span>
-                </div>
-                """, unsafe_allow_html=True)
-                if ans3:
-                    st.success("🎉 **정답: f(3) = 27** (직선 y=x와 원점에서 만나고 x=1에서 접한다는 기하적 의미를 비율로 파악하면 30번 문제도 가볍게 격파!)")
+                # ==================== [확대 모드 2 : 난이도 중] ====================
+                elif q_zoom == "2":
+                    st.markdown("""
+                    <div class="card lv2" style="padding: 32px 42px; margin-top: 8px; border-width: 3px;">
+                        <div style="font-size: 1.85rem; font-weight: 900; color: #1e40af; margin-bottom: 20px;">
+                            🔵 [기출 맛보기 2 — 난이도 중] 평가원 4점 기출 (대칭성 + 비율)
+                        </div>
+                        <div style="font-size: 1.7rem; color: #0f172a; line-height: 1.75; font-weight: 700; margin-bottom: 20px;">
+                            삼차함수 <b>f(x)</b>가 다음 두 조건을 만족시킨다.<br>
+                            <div style="background:#ffffff; border:2px solid #cbd5e1; border-radius:10px; padding:16px 24px; margin-top:12px;">
+                                <b>(가)</b> &nbsp; 함수 f(x)는 <b>x = −2</b> 에서 극댓값을 갖는다.<br>
+                                <b>(나)</b> &nbsp; <b>f '(−3) = f '(3)</b>
+                            </div>
+                            <div style="margin-top: 18px; color: #0f172a;">
+                                👉 &lt;보 기&gt;에서 옳은 것만을 있는 대로 고른 것은?
+                            </div>
+                            </div>
+                            <div style="border: 3px solid #60a5fa; border-radius: 12px; background: #ffffff; padding: 22px 28px; margin: 18px 0; font-size: 1.6rem; color: #1e3a8a; line-height: 1.85; font-weight: 700;">
+                                <b style="font-size: 1.7rem; color:#1d4ed8;">&lt; 보 기 &gt;</b><br>
+                            <b>ㄱ.</b> &nbsp; 도함수 f '(x)는 <b>x = 0</b> 에서 최솟값을 갖는다.<br>
+                            <b>ㄴ.</b> &nbsp; 방정식 <b>f(x) = f(2)</b> 는 서로 다른 두 실근을 갖는다.<br>
+                            <b>ㄷ.</b> &nbsp; 곡선 y = f(x) 위의 점 <b>(−1, f(−1))</b> 에서의 접선은 점 <b>(2, f(2))</b> 를 지난다.
+                        </div>
+                        <div style="background:#dbeafe; padding:14px 20px; border-radius:10px; color:#1e40af; font-weight:800; font-size: 1.35rem;">
+                            💡 힌트: (나)에서 이차함수 f '(x)의 대칭축이 <b>x = 0</b> 임을 알면, 극솟점의 위치가 바로 나옵니다!
+                        </div>
+                    </div>
+                    """, unsafe_allow_html=True)
+                    if ans2:
+                        st.markdown("""
+                        <div class="unlock" style="font-size: 1.65rem; padding: 22px; margin-top: 14px; text-align:left;">
+                            🎉 <b>정답 : ⑤ (ㄱ, ㄴ, ㄷ 모두 참!)</b><br>
+                            <span style="font-size: 1.35rem; font-weight: 600; line-height: 1.7;">
+                            • <b>ㄱ:</b> f '(−3) = f '(3) 이므로 이차함수 f '(x)의 대칭축은 <b>x = 0</b> (참)<br>
+                            • <b>ㄴ:</b> 대칭축이 x = 0 이고 극대가 x = −2 이므로, <b>극소는 x = 2</b>! 따라서 y = f(2)는 극솟점을 지나는 수평선이므로 실근 2개 (참)<br>
+                            • <b>ㄷ:</b> 오늘 탭 2에서 배운 <b>기울어진 접선의 비율 법칙</b>에 의해 x = −1에서의 접선은 다시 x = 2에서 곡선과 만납니다! (참)
+                            </span>
+                        </div>
+                        """, unsafe_allow_html=True)
+
+                # ==================== [확대 모드 3 : 난이도 상] ====================
+                elif q_zoom == "3":
+                    st.markdown("""
+                    <div class="card lv3" style="padding: 36px 44px; margin-top: 8px; border-width: 3px;">
+                        <div style="font-size: 1.9rem; font-weight: 900; color: #15803d; margin-bottom: 24px;">
+                            🔴 [기출 맛보기 3 — 난이도 상] 수능 30번 킬러 문항 맛보기
+                        </div>
+                        <div style="font-size: 1.8rem; color: #0f172a; line-height: 1.85; font-weight: 700; margin-bottom: 28px;">
+                            • 최고차항의 계수가 양수인 삼차함수 <b>f(x)</b>가 다음 조건을 만족시킨다.<br><br>
+                            <div style="background:#ffffff; border:2px solid #86efac; border-radius:10px; padding:18px 26px;">
+                                <b>(가)</b> &nbsp; <b>f(0) = 0</b> 이고, &nbsp; <b>f '(1) = 1</b> 이다.<br>
+                                <b>(나)</b> &nbsp; 방정식 <b>f(x) = x</b> 와 <b>f(x) = −x</b> 의 실근의 개수는 각각 <b>2개</b>이다.
+                            </div><br>
+                            👉 이때, 함숫값 <b>f(3)</b> 의 값을 구하시오!
+                        </div>
+                        <div style="background:#dcfce7; padding:16px 22px; border-radius:10px; color:#166534; font-weight:800; font-size: 1.4rem;">
+                            💡 힌트: 삼차함수와 직선 y = x 가 만나는 교점이 2개뿐이라는 것은 <b>한 점에서 접한다(중근)</b>는 뜻입니다!
+                        </div>
+                    </div>
+                    """, unsafe_allow_html=True)
+                    if ans3:
+                        st.markdown("""
+                        <div class="unlock" style="font-size: 1.7rem; padding: 24px; margin-top: 16px;">
+                            🎉 <b>정답 : f(3) = 27</b><br>
+                            <span style="font-size: 1.38rem; font-weight: 600; line-height: 1.7;">
+                            곡선 y = f(x)가 원점(0, 0)을 지나고 직선 y = x 와 <b>x = 1 에서 접하는</b> 형태가 됩니다!<br>
+                            접점과 교점의 인수정리와 비율 성질을 이용하면 복잡한 연립방정식 없이 30번 최고난도 문제도 격파됩니다! (다음 시간에 함께 풀이!)
+                            </span>
+                        </div>
+                        """, unsafe_allow_html=True)
+
+                # ==================== [기본 모드 : 3문제 전체 목록] ====================
+                else:
+                    st.markdown("### 🎯 [차시 예고] 오늘 발견한 비율 법칙으로 기출 문제를 1분 만에 풀어본다!")
+                    st.markdown("""
+                    <div class="card lv1" style="margin-bottom: 10px; padding: 16px 22px;">
+                        <b style="font-size: 1.3rem; color: #c2410c;">🟢 [1번 · 난이도 하] 기본 적용 (교과서 공략)</b><br>
+                        <p style="font-size: 1.2rem; margin: 8px 0 10px 0; color: #1e293b; line-height: 1.6;">
+                            • 최고차항의 계수가 1인 삼차함수 f(x)가 <b>x = 1 에서 극댓값 5</b>를 갖고, <b>x = 3 에서 극솟값</b>을 갖는다.<br>
+                            • 직선 <b>y = 5</b> 가 곡선 y = f(x)와 다시 만나는 점의 x좌표는?
+                        </p>
+                        <span style="color:#c2410c; font-weight:700; font-size: 1.05rem;">💡 공식 연산 없이 비율(2:1)로 암산 가능!</span>
+                    </div>
+                    """, unsafe_allow_html=True)
+                    if ans1:
+                        st.success("🎉 **정답: x = 4** (극대 1 ~ 극소 3 거리가 2이므로, 극소에서 2의 절반인 1만큼 더 간 3+1=4!)")
+
+                    st.markdown("""
+                    <div class="card lv2" style="margin-bottom: 10px; padding: 16px 22px;">
+                        <b style="font-size: 1.3rem; color: #1e40af;">🔵 [2번 · 난이도 중] 평가원 4점 기출 (대칭성 활용)</b><br>
+                        <p style="font-size: 1.2rem; margin: 8px 0 10px 0; color: #1e293b; line-height: 1.6;">
+                            삼차함수 f(x)가 다음 조건을 만족한다.<br>
+                            <b>(가)</b> x = −2 에서 극댓값을 갖는다. &nbsp;&nbsp;&nbsp; <b>(나)</b> f '(−3) = f '(3)<br>
+                            👉 &lt;보 기&gt;에서 옳은 것만을 있는 대로 고른 것은?
+                        </p>
+                        <div style="border: 2px solid #93c5fd; border-radius: 8px; background: #f0f9ff; padding: 10px 16px; margin: 8px 0 10px 0; font-size: 1.12rem; color: #1e3a8a; line-height: 1.65;">
+                            <b>[보 기]</b><br>
+                            <b>ㄱ.</b> 도함수 f '(x)는 x = 0 에서 최솟값을 갖는다.<br>
+                            <b>ㄴ.</b> 방정식 f(x) = f(2)는 서로 다른 두 실근을 갖는다.<br>
+                            <b>ㄷ.</b> 곡선 y = f(x) 위의 점 (−1, f(−1))에서의 접선은 점 (2, f(2))를 지난다.
+                        </div>
+                        <span style="color:#1e40af; font-weight:700; font-size: 1.05rem;">💡 f '(−3) = f '(3)을 통해 대칭축이 x = 0 임을 알면, 극솟점이 x = 2 가 되고 ㄱ, ㄴ, ㄷ 모두 비율로 3초 만에 해결 가능!</span>
+                    </div>
+                    """, unsafe_allow_html=True)
+                    if ans2:
+                        st.success("🎉 **정답: ⑤ (ㄱ, ㄴ, ㄷ)** (대칭점인 x=0을 기준으로 극대가 -2, 극소가 2이므로 ㄱ, ㄴ, ㄷ 모두 대칭성과 비율 성질에 의해 완벽하게 참이 됩니다!)")
+
+                    st.markdown("""
+                    <div class="card lv3" style="margin-bottom: 10px; padding: 16px 22px;">
+                        <b style="font-size: 1.3rem; color: #15803d;">🔴 [3번 · 난이도 상] 수능 30번 맛보기</b><br>
+                        <p style="font-size: 1.2rem; margin: 8px 0 10px 0; color: #1e293b; line-height: 1.6;">
+                            • 최고차항 계수가 양수인 삼차함수 f(x)가 <b>f(0) = 0, f '(1) = 1</b> 이고,<br>
+                            • 방정식 <b>f(x) = ±x</b> 의 실근 개수가 각각 2개이다. <b>f(3)</b> 의 값은?
+                        </p>
+                        <span style="color:#15803d; font-weight:700; font-size: 1.05rem;">💡 직선 y = x 와의 접점 비율(1:2)을 쓰면 복잡한 연립 방정식 없이 f(x)가 뚝딱 완성됨!</span>
+                    </div>
+                    """, unsafe_allow_html=True)
+                    if ans3:
+                        st.success("🎉 **정답: f(3) = 27** (직선 y=x와 원점에서 만나고 x=1에서 접한다는 기하적 의미를 비율로 파악하면 30번 문제도 가볍게 격파!)")
             return
 
         # =====================================================================
