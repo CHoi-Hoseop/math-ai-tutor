@@ -188,7 +188,7 @@ def get_all_progress():
     except Exception as e:
         db_warn(e)
         for t in TEAMS:
-        out.setdefault(t, {"team": t, "level": 1, "step1_approved": 0, "step2_approved": 0, "stage_start_time": ts(), "hint_lv1": 0, "hint_lv2": 0, "hint_lv3": 0})
+            out.setdefault(t, {"team": t, "level": 1, "step1_approved": 0, "step2_approved": 0, "stage_start_time": ts(), "hint_lv1": 0, "hint_lv2": 0, "hint_lv3": 0})
         done_set = set()
         try:
             with db() as c:
