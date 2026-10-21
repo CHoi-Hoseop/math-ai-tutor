@@ -187,12 +187,25 @@ def get_all_progress():
             out[r[0]] = _row_to_prog(r)
     except Exception as e:
         db_warn(e)
-    for t in TEAMS:
+        for t in TEAMS:
         out.setdefault(t, {"team": t, "level": 1, "step1_approved": 0, "step2_approved": 0, "stage_start_time": ts(), "hint_lv1": 0, "hint_lv2": 0, "hint_lv3": 0})
-    return out
+        done_set = set()
+        try:
+            with db() as c:
+                for k, v in c.execute("SELECT key, val FROM class_state WHERE key LIKE 'done%'").fetchall():
+                    if v == "1" and k.startswith("done_"):
+                        done_set.add(k[5:])
+        except Exception as e:
+            db_warn(e)
+        for t in TEAMS:
+            out[t]["done"] = (t in done_set)
+        return out
 
 def get_progress(team):
     return get_all_progress()[team]
+
+def set_done(team, val):
+    set_state(f"done_{team}", "1" if val else "0")
 
 def update_progress(team, reset_timer=False, **fields):
     allowed = {"level", "step1_approved", "step2_approved", "hint_lv1", "hint_lv2", "hint_lv3"}
@@ -655,7 +668,9 @@ def level_badge(prog):
         return f'<span class="badge b-lv1">🔒 LV1 {"(버튼대기)" if prog["step1_approved"] else "(탐구중)"}</span>'
     if lv == 2:
         return f'<span class="badge b-lv2">🔓 LV2 {"(버튼대기)" if prog["step2_approved"] else "(탐구중)"}</span>'
-    return '<span class="badge b-lv3">🏆 LV3 (증명중)</span>'
+        if prog.get("done"):
+            return '<span class="badge b-ok">🏆👑 LV3 완료!</span>'
+        return '<span class="badge b-lv3">🏆 LV3 (증명중)</span>'
 
 def timeline_html(elap):
     steps = [("1단계 문제 제기", "0~9분 · 증감표", elap <= 9), ("2단계 AI 기하 탐구", "9~25분 · 교점·간격 측정", 9 < elap <= 25),
@@ -1129,7 +1144,13 @@ if mode in (BOARD_MODE, REMOTE_MODE):
                                 update_progress(t, level=lv + 1, step1_approved=1, step2_approved=(1 if lv + 1 == 3 else 0), reset_timer=True)
                                 save_log(t, "teacher", "system", "[교사 강제 오픈]", f"LV{lv + 1} 강제 개방", 0, lv + 1); st.rerun()
                         else:
-                            c3.button("🏆 완료", key=f"done_{t}", disabled=True, use_container_width=True)
+                            t_done = bool(p.get("done"))
+                            if c3.button("↩ 완료 취소" if t_done else "🏆 완료 처리", key=f"done_{t}",
+                                         type="secondary" if t_done else "primary", use_container_width=True):
+                                set_done(t, not t_done)
+                                save_log(t, "teacher", "system", "[교사 완료 처리]",
+                                         "LV3 탐구 완료 인정 🏆" if not t_done else "LV3 완료 처리 취소", 0, 3)
+                                st.rerun()
 
                     with st.container(height=230 if is_board else 185, border=True):
                         if tl.empty:
@@ -1194,7 +1215,7 @@ if mode in (BOARD_MODE, REMOTE_MODE):
                     c3 = all_logs[(all_logs["team"] == t) & (all_logs["kind"] == "chat") & (all_logs["level"] == 3)]
                     if len(c3):
                         with fin_cols[k % 3]:
-                            st.markdown(f'<div class="card lv3" style="padding:10px 14px;"><b>{t}</b><br>{esc(c3["question"].iloc[-1], 140)}</div>', unsafe_allow_html=True)
+                            st.markdown(f'<div class="card lv3" style="padding:10px 14px;"><b>{t}</b>{" 🏆 완료" if progs[t].get("done") else ""}<br>{esc(c3["question"].iloc[-1], 140)}</div>', unsafe_allow_html=True)
                         k += 1
             if k == 0:
                 st.caption("아직 3단계에 도달한 모둠이 없습니다.")
@@ -1270,6 +1291,7 @@ if is_guest:
 else:
     prog = get_progress(team)
 level = prog["level"]
+done = bool(prog.get("done"))
 approved = bool(prog["step1_approved"]) if level == 1 else bool(prog["step2_approved"]) if level == 2 else True
 
 @st.fragment(run_every="6s")
@@ -1285,7 +1307,9 @@ def top_bar():
         cur_req_pin = get_state("student_pin") or ""
         if (get_state("student_block") == "1") or (cur_req_pin and st.session_state.get("student_authed_pin") != cur_req_pin):
             st.rerun(scope="app")
-        changed = (p["level"] != level) or (bool(p["step1_approved"] if p["level"] == 1 else p["step2_approved"] if p["level"] == 2 else True) != approved)
+        changed = (p["level"] != level) or (bool(p["step1_approved"] if p["level"] == 1 else p["step2_approved"] if p["level"] == 2 else True) != approved) or (bool(p.get("done")) != done)
+        if p.get("done") and not done:
+            st.session_state["celebrate"] = True
         if maybe_send_hints(team, p, act) or changed:
             st.rerun(scope="app")
 top_bar()
@@ -1317,6 +1341,8 @@ else:
 
 cls, title, body = MISSION_CARD[level]
 st.markdown(f'<div class="card {cls}"><b style="font-size:1.05rem;">{title}</b><br><span style="font-size:0.9rem;">{body}</span></div>', unsafe_allow_html=True)
+if level == 3 and done and not is_guest:
+    st.markdown('<div class="unlock">🏆👑 선생님이 확인했어요! 우리 모둠 탐구 완성 — 수고했어요! 👑🏆</div>', unsafe_allow_html=True)
 
 col_g, col_c = st.columns([1.05, 0.95], gap="medium")
 
