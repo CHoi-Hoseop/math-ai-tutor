@@ -1108,7 +1108,7 @@ if mode in (BOARD_MODE, REMOTE_MODE):
                     if ans3:
                         st.markdown("""
                         <div class="unlock" style="font-size: 1.7rem; padding: 24px; margin-top: 16px;">
-                            🎉 <b>정답 : f(3) = 27</b><br>
+                            🎉 <b>정답 : f(3) = 51</b><br>
                             <span style="font-size: 1.38rem; font-weight: 600; line-height: 1.7;">
                             곡선 y = f(x)가 원점(0, 0)을 지나고 직선 y = x 와 <b>x = 1 에서 접하는</b> 형태가 됩니다!<br>
                             접점과 교점의 인수정리와 비율 성질을 이용하면 복잡한 연립방정식 없이 30번 최고난도 문제도 격파됩니다! (다음 시간에 함께 풀이!)
@@ -1163,7 +1163,7 @@ if mode in (BOARD_MODE, REMOTE_MODE):
                     </div>
                     """, unsafe_allow_html=True)
                     if ans3:
-                        st.success("🎉 **정답: f(3) = 27** (직선 y=x와 원점에서 만나고 x=1에서 접한다는 기하적 의미를 비율로 파악하면 30번 문제도 가볍게 격파!)")
+                        st.success("🎉 **정답: f(3) = 51** (직선 y=x와 원점에서 만나고 x=1에서 접한다는 기하적 의미를 비율로 파악하면 30번 문제도 가볍게 격파!)")
             return
 
         # =====================================================================
