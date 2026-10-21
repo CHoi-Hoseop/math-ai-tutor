@@ -233,7 +233,8 @@ def reset_everything():
     try:
         with db() as c:
             c.execute("DELETE FROM logs"); c.execute("DELETE FROM sqlite_sequence WHERE name='logs'")
-            c.execute("DELETE FROM team_progress"); c.execute("DELETE FROM class_state")
+            c.execute("DELETE FROM team_progress")
+            c.execute("DELETE FROM class_state WHERE key NOT IN ('student_pin', 'student_block')")
     except Exception as e:
         db_warn(e)
     init_db()
@@ -807,6 +808,26 @@ if mode in (BOARD_MODE, REMOTE_MODE):
         if sc6.button("⬇️ 맨아래", use_container_width=True, help="전광판 스크롤을 맨 아래로 내립니다"):
             set_state("board_scroll", "3000"); st.rerun()
 
+        # ★ [리모컨 전용] 1~6조 학생 접속 차단 스위치 & 실시간 입장 비밀번호 설정/변경!
+        cur_s_pin = get_state("student_pin") or ""
+        is_blocked = (get_state("student_block") == "1")
+        pc1, pc2, pc3, pc4 = st.columns([1.4, 1.8, 1.0, 1.8])
+        if pc1.button("🔓 학생 차단해제 (현재 차단중)" if is_blocked else "🚫 1~6조 학생 전체 접속차단",
+                      type="primary" if is_blocked else "secondary", use_container_width=True,
+                      help="누르는 즉시 이미 접속해 있는 1~6조 학생들의 화면을 모두 막거나 엽니다!"):
+            set_state("student_block", "0" if is_blocked else "1")
+            st.toast("학생 접속 허용!" if is_blocked else "🚨 1~6조 학생 접속이 전면 차단되었습니다!", icon="🔓" if is_blocked else "🚫")
+            st.rerun()
+        new_s_pin = pc2.text_input("학생 입장 비번", value=cur_s_pin, placeholder="비번 입력 (비우면 암호 없음)", label_visibility="collapsed", key="s_pin_input")
+        if pc3.button("🔑 비번변경", use_container_width=True, help="비번을 바꾸면 이미 접속해 있던 학생들도 즉시 잠기며 새 비번을 입력해야 합니다!"):
+            set_state("student_pin", new_s_pin.strip())
+            st.toast(f"학생 비번이 '{new_s_pin.strip()}'(으)로 변경되었습니다! (기존 접속자도 즉시 재인증 필요)" if new_s_pin.strip() else "학생 입장 비번이 해제되었습니다!", icon="🔑")
+            st.rerun()
+        status_txt = "⛔ <b>현재: 전면 차단중</b>" if is_blocked else (f"🔐 <b>현재 학생 비번: <span style='color:#2563eb'>{html.escape(cur_s_pin)}</span></b>" if cur_s_pin else "🟢 <b>현재: 비번 없이 열림</b>")
+        pc4.markdown(f"<div style='padding:7px 12px; background:#f8fafc; border:1px solid #cbd5e1; border-radius:8px; font-size:0.88rem; text-align:center;'>{status_txt}</div>", unsafe_allow_html=True)
+
+    # ★ 2초 주기로 DB 상태를 읽어와 전광판과 리모컨을 실시간 동기화!
+
     # ★ 2초 주기로 DB 상태를 읽어와 전광판과 리모컨을 실시간 동기화!
     @st.fragment(run_every="2s")
     def dashboard():
@@ -1197,6 +1218,49 @@ is_guest = (mode == "☕ 참관교사")
 team = GUEST if is_guest else mode
 client_id = f"T-{st.session_state['client_id']}" if is_guest else "tablet"
 
+# ★ [1~6조 학생 전용] 교사 원격 접속 차단 & 입장 비밀번호(PIN) 검문소!
+if not is_guest:
+    req_pin = get_state("student_pin") or ""
+    blocked = (get_state("student_block") == "1")
+
+    # 1) 교사가 [🚫 학생 접속차단]을 켜둔 경우 → 즉시 차단 안내 화면 표시 (5초마다 자동 해제 감지)
+    if blocked:
+        @st.fragment(run_every="5s")
+        def _wait_unblock():
+            if get_state("student_block") != "1":
+                st.rerun(scope="app")
+            st.markdown("""
+            <div class="card" style="text-align:center; padding:50px 20px; margin-top:30px; border:3px solid #ef4444; background:#fef2f2;">
+                <h1 style="color:#b91c1c; font-size:2rem !important;">⛔ 현재 선생님이 접속을 제한했습니다</h1>
+                <p style="font-size:1.2rem; color:#7f1d1d; margin-top:12px;">
+                    수업 시간이 아니거나 선생님이 화면을 잠가 두셨습니다.<br>
+                    선생님이 접속 제한을 해제하면 이 화면이 자동으로 열립니다! 잠시만 기다려 주세요.
+                </p>
+            </div>
+            """, unsafe_allow_html=True)
+        _wait_unblock()
+        st.stop()
+
+    # 2) 교사가 학생 입장 비번(student_pin)을 설정해 둔 경우 → 비번이 맞을 때만 통과!
+    #    (교사가 비번을 바꾸면 st.session_state["student_authed_pin"]과 달라지므로 기존 접속자도 즉시 다시 잠김!)
+    if req_pin and st.session_state.get("student_authed_pin") != req_pin:
+        st.title(f"🔐 {mode} — 입장 비밀번호 입력")
+        st.markdown("""
+        <div class="card lv2" style="font-size:1.1rem;">
+            선생님께서 안내해 주신 <b>오늘의 수업 입장 비밀번호</b>를 입력해야 탐구 교실이 열립니다!
+        </div>
+        """, unsafe_allow_html=True)
+        with st.form("student_pin_form"):
+            in_pin = st.text_input("🔑 입장 비밀번호", type="password", placeholder="선생님이 알려주신 비밀번호를 입력하세요")
+            sub = st.form_submit_button("✅ 입장하기", type="primary", use_container_width=True)
+            if sub:
+                if in_pin.strip() == req_pin:
+                    st.session_state["student_authed_pin"] = req_pin
+                    st.rerun()
+                else:
+                    st.error("❌ 비밀번호가 일치하지 않습니다! 선생님께 다시 확인해 보세요.")
+        st.stop()
+
 if st.session_state.pop("celebrate", False):
     st.balloons()
 
@@ -1208,7 +1272,7 @@ else:
 level = prog["level"]
 approved = bool(prog["step1_approved"]) if level == 1 else bool(prog["step2_approved"]) if level == 2 else True
 
-@st.fragment(run_every="10s")
+@st.fragment(run_every="6s")
 def top_bar():
     lab, el, act = class_clock()
     p = get_progress(team) if not is_guest else prog
@@ -1217,9 +1281,13 @@ def top_bar():
     <div style="display:flex;gap:8px;flex-wrap:wrap;"><span class="pill" style="background:#1e3a8a;color:#bfdbfe;">⏱️ 수업 {el}분 / {CLASS_MIN}분</span>
     <span class="pill" style="background:#334155;color:#fde047;">⏳ 이 단계 {sm}분째</span></div></div>""", unsafe_allow_html=True)
     if not is_guest:
+        # ★ 이미 접속해 있는 학생이라도 교사가 [차단]을 누르거나 [비번을 변경]하면 6초 내로 즉시 감지하여 강제 퇴장!
+        cur_req_pin = get_state("student_pin") or ""
+        if (get_state("student_block") == "1") or (cur_req_pin and st.session_state.get("student_authed_pin") != cur_req_pin):
+            st.rerun(scope="app")
         changed = (p["level"] != level) or (bool(p["step1_approved"] if p["level"] == 1 else p["step2_approved"] if p["level"] == 2 else True) != approved)
         if maybe_send_hints(team, p, act) or changed:
-            st.rerun()
+            st.rerun(scope="app")
 top_bar()
 
 if is_guest:
@@ -1296,6 +1364,8 @@ with col_c:
 
     @st.fragment(run_every="6s")
     def chat_panel():
+        if not is_guest and ((get_state("student_block") == "1") or ((get_state("student_pin") or "") and st.session_state.get("student_authed_pin") != (get_state("student_pin") or ""))):
+            st.rerun(scope="app")
         p = get_progress(team) if not is_guest else prog
         if not is_guest and p["level"] != level:
             st.rerun()
