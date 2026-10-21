@@ -875,7 +875,7 @@ if mode in (BOARD_MODE, REMOTE_MODE):
                                     if (act === 'TOP' || act === '0') {{
                                         el.scrollTo({{top: 0, behavior: 'smooth'}});
                                     }} else if (act === 'BOTTOM') {{
-                                        el.scrollTo({top: el.scrollHeight + 300, behavior: 'smooth'});
+                                        el.scrollTo({{top: el.scrollHeight, behavior: 'smooth'}});
                                     }} else if (act === 'UP') {{
                                         el.scrollBy({{top: -step, behavior: 'smooth'}});
                                     }} else if (act === 'DOWN') {{
