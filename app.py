@@ -187,19 +187,19 @@ def get_all_progress():
             out[r[0]] = _row_to_prog(r)
     except Exception as e:
         db_warn(e)
-        for t in TEAMS:
-            out.setdefault(t, {"team": t, "level": 1, "step1_approved": 0, "step2_approved": 0, "stage_start_time": ts(), "hint_lv1": 0, "hint_lv2": 0, "hint_lv3": 0})
-        done_set = set()
-        try:
-            with db() as c:
-                for k, v in c.execute("SELECT key, val FROM class_state WHERE key LIKE 'done%'").fetchall():
-                    if v == "1" and k.startswith("done_"):
-                        done_set.add(k[5:])
-        except Exception as e:
-            db_warn(e)
-        for t in TEAMS:
-            out[t]["done"] = (t in done_set)
-        return out
+    for t in TEAMS:
+        out.setdefault(t, {"team": t, "level": 1, "step1_approved": 0, "step2_approved": 0, "stage_start_time": ts(), "hint_lv1": 0, "hint_lv2": 0, "hint_lv3": 0})
+    done_set = set()
+    try:
+        with db() as c:
+            for k, v in c.execute("SELECT key, val FROM class_state WHERE key LIKE 'done%'").fetchall():
+                if v == "1" and k.startswith("done_"):
+                    done_set.add(k[5:])
+    except Exception as e:
+        db_warn(e)
+    for t in TEAMS:
+        out[t]["done"] = (t in done_set)
+    return out
 
 def get_progress(team):
     return get_all_progress()[team]
