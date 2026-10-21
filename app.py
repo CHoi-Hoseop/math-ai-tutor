@@ -134,6 +134,8 @@ def init_db():
             c.execute("INSERT OR IGNORE INTO team_progress (team, level, step1_approved, step2_approved, stage_start_time, hint_lv1, hint_lv2) VALUES (?,1,0,0,?,0,0)", (t, now))
 
 def set_state(key, val):
+    if key == "board_scroll" and val == "0":
+        val = f"TOP_{time.time()}"      # "0"을 반복 저장해도 매번 '새 명령'으로 인식되게
     try:
         with db() as c:
             c.execute("INSERT INTO class_state (key, val) VALUES (?,?) ON CONFLICT(key) DO UPDATE SET val=excluded.val", (key, val))
@@ -853,41 +855,50 @@ if mode in (BOARD_MODE, REMOTE_MODE):
         <span class="pill" style="background:#1e293b;color:#38bdf8;font-family:monospace;">⌚ {kst_now().strftime('%H:%M:%S')}</span></div></div>""", unsafe_allow_html=True)
         st.markdown(timeline_html(elap), unsafe_allow_html=True)
 
-        # ★ [전광판 전용] 리모컨 스크롤 버튼을 누를 때만 현재 위치에서 부드럽게 이동!
+                # ★ [전광판 전용] 스크롤 명령 수신기 — 매번 '같은 자리에 같은 모양'으로 그려서 화면이 다시 만들어지지 않게 함
         if is_board:
-            sc_cmd = get_state("board_scroll") or ""
-            prev_sc = st.session_state.get("prev_scroll_cmd", sc_cmd)
-            if sc_cmd and sc_cmd != prev_sc:
-                st.session_state["prev_scroll_cmd"] = sc_cmd
-                action = sc_cmd.split("_")[0]   # TOP, UP, DOWN, BOTTOM (또는 "0")
-                components.html(f"""<script>
-                    (function() {{
-                        const doc = window.parent.document;
-                        const act = "{action}";
-                        const step = 350;  // 한 번 클릭 시 이동할 간격(px)
-                        
-                        // 화면 내 스크롤이 존재하는 모든 요소(전체화면 + 조별 확대창 + 미니카드) 찾기
-                        const allEls = doc.querySelectorAll('[data-testid="stMain"], section.main, [data-testid="stAppViewContainer"], div');
-                        allEls.forEach(el => {{
-                            if (el && el.scrollHeight > el.clientHeight + 5) {{
-                                const st = window.parent.getComputedStyle(el);
-                                if (st.overflowY === 'auto' || st.overflowY === 'scroll' || el.tagName === 'SECTION' || el.getAttribute('data-testid') === 'stMain') {{
-                                    if (act === 'TOP' || act === '0') {{
-                                        el.scrollTo({{top: 0, behavior: 'smooth'}});
-                                    }} else if (act === 'BOTTOM') {{
-                                        el.scrollTo({{top: el.scrollHeight, behavior: 'smooth'}});
-                                    }} else if (act === 'UP') {{
-                                        el.scrollBy({{top: -step, behavior: 'smooth'}});
-                                    }} else if (act === 'DOWN') {{
-                                        el.scrollBy({{top: step, behavior: 'smooth'}});
-                                    }}
-                                }}
-                            }}
-                        }});
-                    }})();
-                </script>""", height=0)
-            else:
-                st.session_state["prev_scroll_cmd"] = sc_cmd
+            sc_cmd = html.escape(get_state("board_scroll") or "init")
+            components.html("""<script>
+            (function() {
+                const P = window.parent, doc = P.document;
+                const cmd = "__CMD__";
+                // 처음 접속/새로고침 때는 옛 명령을 다시 실행하지 않고 기록만 함
+                if (P.__csLastScrollCmd === undefined) { P.__csLastScrollCmd = cmd; return; }
+                if (P.__csLastScrollCmd === cmd) return;
+                P.__csLastScrollCmd = cmd;
+                const act = cmd.split("_")[0];            // TOP, UP, DOWN, BOTTOM
+                const step = 350;
+
+                function canScroll(el) {
+                    if (!el) return false;
+                    const oy = P.getComputedStyle(el).overflowY;
+                    return (oy === 'auto' || oy === 'scroll') && el.scrollHeight > el.clientHeight + 4;
+                }
+                // 1순위: 조별 확대창(마커가 있는 안쪽 스크롤 상자) / 2순위: 전체 화면 스크롤 '하나만'
+                let target = null;
+                const mk = doc.querySelector('.scroll-zoom-marker');
+                if (mk) {
+                    let el = mk.parentElement;
+                    while (el && el !== doc.body) { if (canScroll(el)) { target = el; break; } el = el.parentElement; }
+                }
+                if (!target) {
+                    const cands = [doc.querySelector('[data-testid="stMain"]'), doc.querySelector('section.main'),
+                                   doc.querySelector('[data-testid="stAppViewContainer"]')];
+                    target = cands.find(canScroll) || null;
+                }
+                const cur = target ? target.scrollTop : (P.scrollY || 0);
+                const max = target ? (target.scrollHeight - target.clientHeight)
+                                   : (doc.documentElement.scrollHeight - P.innerHeight);
+                let y = cur;
+                if (act === 'TOP') y = 0;
+                else if (act === 'BOTTOM') y = max;
+                else if (act === 'UP') y = cur - step;
+                else if (act === 'DOWN') y = cur + step;
+                y = Math.max(0, Math.min(max, y));
+                if (target) target.scrollTo({top: y, behavior: 'smooth'});
+                else P.scrollTo({top: y, behavior: 'smooth'});
+            })();
+            </script>""".replace("__CMD__", sc_cmd), height=0)
 
         # =====================================================================
         # ★ [🎓 최종정리] 화면 (탭 전환 + 그래프 100% 전체확대 + 슬라이더 + 정답 공개 모두 연동!)
@@ -1217,6 +1228,7 @@ if mode in (BOARD_MODE, REMOTE_MODE):
                 if zc2.button("✖ 확대 닫기 (전광판 복귀)", type="primary", use_container_width=True, key="zoom_close"):
                     set_state("zoom_team", ""); set_state("board_scroll", "0"); st.rerun()
             with st.container(height=580, border=True):
+                st.markdown('<span class="scroll-zoom-marker"></span>', unsafe_allow_html=True)
                 if zl.empty:
                     st.info("아직 질문이 없습니다.")
                 else:
