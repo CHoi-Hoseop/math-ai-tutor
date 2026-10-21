@@ -821,7 +821,7 @@ if mode in (BOARD_MODE, REMOTE_MODE):
         if sc5.button("🔽 아래로", use_container_width=True, help="전광판 화면을 아래로 스크롤합니다"):
             set_state("board_scroll", str(cur_scroll + 420)); st.rerun()
         if sc6.button("⬇️ 맨아래", use_container_width=True, help="전광판 스크롤을 맨 아래로 내립니다"):
-            set_state("board_scroll", "3000"); st.rerun()
+            set_state("board_scroll", "99999"); st.rerun()
 
         # ★ [리모컨 전용] 1~6조 학생 접속 차단 스위치 & 실시간 입장 비밀번호 설정/변경!
         cur_s_pin = get_state("student_pin") or ""
@@ -854,7 +854,7 @@ if mode in (BOARD_MODE, REMOTE_MODE):
         <span class="pill" style="background:#1e293b;color:#38bdf8;font-family:monospace;">⌚ {kst_now().strftime('%H:%M:%S')}</span></div></div>""", unsafe_allow_html=True)
         st.markdown(timeline_html(elap), unsafe_allow_html=True)
 
-        # ★ [전광판 전용] 리모컨에서 누른 스크롤 위치(board_scroll)를 매 갱신마다 정확히 타겟팅!
+        # ★ [전광판 전용] 전체 화면 + 확대된 조별 대화창 + 미니 카드 등 스크롤이 있는 모든 박스를 원격 제어!
         if is_board:
             target_y = int(get_state("board_scroll") or "0")
             prev_y = st.session_state.get("prev_scroll_y", -1)
@@ -865,18 +865,14 @@ if mode in (BOARD_MODE, REMOTE_MODE):
                     const doc = window.parent.document;
                     const y = {target_y};
                     const beh = "{behavior}";
-                    // Streamlit 모든 버전의 스크롤 가능 컨테이너를 전부 탐색하여 이동
-                    const targets = [
-                        doc.querySelector('[data-testid="stMain"]'),
-                        doc.querySelector('section.main'),
-                        doc.querySelector('[data-testid="stAppViewContainer"]'),
-                        doc.querySelector('.main'),
-                        doc.documentElement,
-                        doc.body
-                    ];
-                    targets.forEach(el => {{
-                        if (el && el.scrollHeight > el.clientHeight) {{
-                            el.scrollTo({{top: y, behavior: beh}});
+                    // 메인 화면 + st.container(height=...) 내부 스크롤 박스를 모두 탐색
+                    const allEls = doc.querySelectorAll('[data-testid="stMain"], section.main, [data-testid="stAppViewContainer"], [data-testid="stVerticalBlockBorderWrapper"] div, div');
+                    allEls.forEach(el => {{
+                        if (el && el.scrollHeight > el.clientHeight + 10) {{
+                            const st = window.parent.getComputedStyle(el);
+                            if (st.overflowY === 'auto' || st.overflowY === 'scroll' || el.tagName === 'SECTION') {{
+                                el.scrollTo({{top: y, behavior: beh}});
+                            }}
                         }}
                     }});
                     window.parent.scrollTo({{top: y, behavior: beh}});
@@ -1209,7 +1205,7 @@ if mode in (BOARD_MODE, REMOTE_MODE):
             zc1.markdown(f"### 🔍 {z} 전체 문답 확대 보기 <span style='font-size:0.95rem;color:#64748b'>(총 {len(zl[zl['kind']=='chat']) if not zl.empty else 0}회)</span>", unsafe_allow_html=True)
             if not is_board:
                 if zc2.button("✖ 확대 닫기 (전광판 복귀)", type="primary", use_container_width=True, key="zoom_close"):
-                    set_state("zoom_team", ""); st.rerun()
+                    set_state("zoom_team", ""); set_state("board_scroll", "0"); st.rerun()
             with st.container(height=580, border=True):
                 if zl.empty:
                     st.info("아직 질문이 없습니다.")
@@ -1251,7 +1247,9 @@ if mode in (BOARD_MODE, REMOTE_MODE):
                         c1, c2, c3 = st.columns(3)
                         is_zoomed = (z == t)
                         if c1.button("✖ 닫기" if is_zoomed else "🔍 크게", key=f"zoom_{t}", use_container_width=True):
-                            set_state("zoom_team", "" if is_zoomed else t); st.rerun()
+                            set_state("zoom_team", "" if is_zoomed else t)
+                            set_state("board_scroll", "0")
+                            st.rerun()
                         lv = p["level"]
                         hint_sent = p.get(f"hint_lv{lv}", 0)
                         c2.button(f"📨 힌트{min(hint_sent + 1, 2)}차", key=f"hint_{t}", use_container_width=True, disabled=(hint_sent >= 2),
